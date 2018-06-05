@@ -1,0 +1,1000 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 8 虚拟变量回归模型"
+author: "胡华平"
+date: "2018/5/4"
+output: 
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: no
+    toc_depth: 4
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: yes
+    toc_depth: 5
+    number_sections: no
+    keep_tex: true
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+
+\newpage
+
+# 虚拟变量回归模型{#dummy-variable}
+
+```{r global_options8, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(fig.align='center') # Places figures on their own pages
+library('bookdown')
+library('knitr')
+library('xlsx')
+library('lmtest')
+
+```
+
+
+## 实验目的及要求
+
+*  **目的**：掌握虚拟变量模型的设置和分析方法。
+*  **要求**：熟悉虚拟变量的设置方法；理解定性变量和定量变量模型的内涵；熟练加法模型和乘法模型的运用原理。
+
+
+## 实验原理
+
+计量经济学建模分析中，我们常常需要把一些**定性变量（Qualitative variables）**（如性别、地区、党派等）作为自变量放入回归模型中。从**变量层次（Variable Scale）**来看，这些变量没有具体的取值，只有特定属性类别。例如，性别变量的具体取值往往为男或女。显然，诸如此类的变量如果直接放到线性回归模型中，将会产生一系列的参数估计、模型解释等问题。
+
+```{definition var-quanty,name='定量变量'}
+定量变量（Quantitative variable）一般也称为连续变量，是由测量或计数、统计所得到的量，可以通过数值表达，并具有直接的数值含义。
+```
+    
+```{definition var-quality,name='定性变量'}
+定性变量（Qualitative variable）一般也称为分类变量，主要用于区分事物性质差异，往往用语义类别表达，没有直接的数值含义。
+```
+    
+```{definition var-scale,name='变量尺度'}
+变量尺度（Variable scale）刻画的是变量的数值含义或数值关系。它将意味着在数值含义和关系上，变量是有层次级别的差异性。根据变量层级不同，具体可以分为由低到高的4个层级：
+**名义尺度（nominal scale）变量**：这类变量只用于属性分类，不具备任何数值含义或数值关系，也即不能加、减、乘、除，也不能比较大小。
+**序数尺度（order scale）变量**：这类变量具备很少的数值含义或数值关系，它可以比较大小，但不能进行加、减、乘、除。
+**区间尺度（interval scale）变量**：这类变量具备一定的数值含义或数值关系，它可以比较大小，也可以进行加、减，但不能进行乘、除。
+**比率尺度（ratio scale）变量**：这类变量具备最多的数值含义或数值关系，它可以比较大小，也可以进行加、减、乘、除。
+```
+
+### 如何把定性变量转换为虚拟变量？
+
+一个定性变量的不同数据取值，称为该定性变量的属性。定性变量的任一属性，都可以设置为一个**虚拟变量**。实际上，我们可以用一套**虚拟变量体系**来完全表达一个定性变量。然后按照一定的规则构建**虚拟变量回归模型**，从而避免参数估计、模型解释等问题的出现。
+
+```{definition var-dummy,name='虚拟变量'}
+对于某定性变量的任一特定属性，可以构造出一个虚拟变量（记为D），使得该虚拟变量能够表达这一属性。同时，给该虚拟变量D赋值为1，记为具备这一属性；给该虚拟变量赋值为0，记为不具备该属性。正式地，假设定性变量$X$具有$m$个属性$a_1,a_2,\cdots,a_m$，对于任意属性$k,(k\in{1,2,\cdots,m})$，可以定义如下的虚拟变量$D_k$：
+
+\begin{equation}
+D_k=
+\begin{cases}
+1, & \text{if } a_k\\
+0, & \text{if not }  a_k
+\end{cases}
+\end{equation}
+
+```
+
+
+```{definition model-dummy,name='虚拟变量体系'}
+完整表达某个定性变量全部信息的一组虚拟变量。正式地，假设定性变量$X$具有$m$个属性$a_1,a_2,\cdots,a_m$，可以用如下一组虚拟变量$D_1,\cdots,D_k,\cdots,D_m$完全表达该定性变量：
+\begin{align}
+X\{a_1,a_2,\cdots,a_m\} \Rightarrow  
+  \begin{cases}
+    D_1  =
+    \begin{cases}
+    1, & \text{if } a_1\\
+    0, & \text{if not }  a_1
+    \end{cases} \\
+     \vdots \\
+    D_k = 
+    \begin{cases}
+    1, & \text{if } a_k\\
+    0, & \text{if not }  a_k
+    \end{cases} \\
+    \vdots\\
+    D_m  =
+    \begin{cases}
+    1, & \text{if } a_m\\
+    0, & \text{if not }  a_m
+    \end{cases}
+  \end{cases}
+\end{align}
+```
+
+例如，定性变量肤色（$X$）具有3个属性（$m=3$），具体为$X\{a_1=yellow,a_2=white,a_3=black\}$，则可以构造出如下的虚拟变量体系^[一个定性变量如果有m个属性，那么可以用m个虚拟变量**完全表达**该定性变量，也可以用$(m-1)$个虚拟变量**充分表达**该定性变量。]：
+
+\begin{align}
+X\{a_1=\text{yellow},a_2=\text{white},a_3=\text{black}\} \\
+\Longrightarrow  
+  \begin{cases}
+    D_1  =
+    \begin{cases}
+    1, & \text{yellow}\\
+    0, & \text{not yellow}
+    \end{cases} \\
+    D_2 = 
+    \begin{cases}
+    1, & \text{white}\\
+    0, & \text{not white}
+    \end{cases} \\
+    D_3  =
+    \begin{cases}
+    1, & \text{black}\\
+    0, & \text{not black}
+    \end{cases}
+  \end{cases}
+\end{align}
+
+
+### 如何理解虚拟变量回归模型？
+
+一个线性回归模型，只要回归元中包含了虚拟变量，这种模型就被称为**虚拟变量回归模型**，也可以称为**方差分析模型** （Analysis of variance, ANOVA）^[**方差分析模型**（Analysis of variance, ANOVA）常用来分析定量化的因变量$Y$与定性回归元或虚拟变量之间的统计显著性关系。一般是通过比较不同类别或不同组的均值差，例如采用t检验可以判断两组均值是否有显著的差异]。
+
+根据回归元包含定量变量和虚拟变量的数量关系，可以将虚拟变量回归模型分为：
+
+* 只含有虚拟变量的回归模型：全部解释变量都是由虚拟变量构成
+* 同时含有虚拟变量和定量变量的回归模型：解释变量同时含有虚拟变量和定量变量
+
+根据虚拟变量引入模型方式的不同，可以划分为：
+
+* 加法模型：虚拟变量以独立项的形式出现在方程中
+* 乘法模型：虚拟变量以交叉项的形式出现在方程中
+* 混合模型：虚拟变量以独立项和/或交叉项的形式出现在方程中^[有时候模型设置中，某个虚拟变量体系（用来表达某个定性变量）的独立项可以完全不出现在方程中（也即没有它们的加法形式），而却可以出现它们与其他变量的交叉项（也即可以出现它们与其他变量的乘法形式）。]
+    * 完全混合模型
+    * 部分混合模型
+
+根据虚拟变量模型是否参照**基础组**，可以划分为^[如果理论要求与**基础组**对比，则理论模型必须设置为有截距回归模型；否则，理论模型需要设置无截距回归模型。]：
+
+* 有截距模型：此时模型解释中将有明确的**基础组**，其他组可以直接与之参照对比。
+* 无截距模型：此时模型解释中将没有明确的**基础组**，各组间将不直接参照对比。
+
+根据模型中的因变量$Y$是否取对数，可以划分为^[半对数或对数模型将蕴含着弹性和斜率的经济学含义，在解释虚拟变量回归模型中往往很有现实意义。]：
+
+* 经典线性模型：因变量为$Y$
+* 半对数模型：因变量为$ln(Y)$
+
+根据虚拟变量模型应用情景的不同，可以划分为：
+
+* 截面数据虚拟变量回归模型：此时虚拟变量用于表达回归元为定性变量的情形
+* 时间序列季节虚拟变量回归模型：此时虚拟变量用于表达季节周期（具体请参看节\@ref(seasonal)）
+* 分段线性虚拟变量回归模型：此时虚拟变量用于表达**阀值**分段（具体请参看节\@ref(piecewise)）
+
+
+对于具体的实证分析案例，我们往往需要根据变量的属性和特征，构建不同类型的虚拟变量回归模型，比较不同模型的回归分析结果，甄选并得到其中相对理想的模型。显然，不同类型的虚拟变量模型设置，具有不同的经济学含义。甚至回归方程系数解读的直观性，模型构建意图表达的直接性等，也存在较大差异，都需要对各种备选的、可行的模型进行反复测试和甄选。
+
+例如，仅是考虑**基础组**的有截距模型，可能用到的各类备选组合模型至少包括（具体回归方程设置见节\@ref(group1)和节\@ref(group2)）：
+
+- 只含有虚拟变量的、加法形式的**经典回归模型**
+- 只含有虚拟变量的、加法形式的**半对数回归模型**
+- 只含有虚拟变量的、乘法形式的**经典回归模型**
+- 只含有虚拟变量的、乘法形式的**半对数回归模型**
+- $\cdots$
+- 同时含有虚拟变量和定量变量的、加法形式的**经典回归模型**
+- 同时含有虚拟变量和定量变量的、加法形式的**半对数回归模型**
+- 同时含有虚拟变量和定量变量的、乘法形式的**经典回归模型**
+- 同时含有虚拟变量和定量变量的、乘法形式的**半对数回归模型**
+- $\cdots$
+
+
+## 实验内容
+
+```{r create-dummy,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+set.seed(123)
+library("knitr")
+# get students data
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+s<-dim(students)[1]
+# get case data
+ready<-readxl::read_xlsx(path = "data/Lab8-indian-wage.xlsx",range="A1:F115")
+n<-dim(ready)[1]
+# create random Y data
+rdm<-matrix(rnorm(s*n),nrow=s) #GET RANDOM NUMBERS
+ready_rdm<-rdm+matrix(rep(t(ready[,2]),s),nrow=s,byrow=TRUE)
+ready_rdm<-format(ready_rdm,digits = 2,nsmall = 2)
+# get X data
+x_data<-ready[,c(-1,-2)]
+# get all exercise data table
+table_exercise<-as.matrix(cbind(x_data,t(ready_rdm)))
+# get students data table
+table_students<-cbind(matrix(rep(names(x_data),dim(students)[2]),nrow=dim(students)[2],byrow=TRUE),t(students))
+# conbine students data & fixed X data & random Y data
+table_lab<-as.data.frame(rbind(table_students,table_exercise))
+name_row<-c(names(students),paste0("n",1:n))
+name_col<-c(names(x_data),paste0("Ydata",1:s))
+dimnames(table_lab)<-list(name_row,name_col)
+# write table for lab exercise
+write.csv(table_lab,"data/Lab8-indian-wage-lab.csv")
+```
+
+
+```{r load-worker,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab8-indian-wage.xlsx",range="A1:F115")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("工人编号","工人工资","年龄",'教育水平','合同类型','性别')
+remark<-c('序号','美元/周','岁','illiteracy=文盲；primary=初等教育；secondary=中等教育；higher=高等教育','temporary=短期合同；permanent=长期合同','female=女；male=男')
+table_label<-as.data.frame(list(variable=names(table_demo),label=label,remark=remark))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+1. 采用最小二乘法建立主回归模型  
+
+2. 自相关问题模型的侦察方法  
+    a. 残差序列观察法（描点图法）：绘制$e_t$序列的描点图（dot plot）  
+    b. 残差序列观察法（描点图法）：确定滞后阶数并分别绘制$e_t$序列与${e_{t-1},e_{t-2},\cdots}$序列的散点图（scatter plot）  
+    b. 辅助回归法：构建残差$e_t$序列对${e_{t-1},e_{t-2},\cdots}$序列的辅助回归方程  
+    c. 自相关和偏相关分析法：Eviews菜单操作对残差$e_t$序列进行自相关和偏相关分析（**注意滞后阶数的选择**）
+    d. Durbin-Watson检验法：分析Eviews报告中的D-W统计量  
+    e. 拉格朗日检验法（LM-test）：Eviews菜单操作进行布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)  
+
+3. 自相关问题模型的矫正方法：  
+    a. 广义最小二乘法(GLS)：一阶差分法变换  
+    b. 广义最小二乘法(GLS)：基于残差辅助方程近似得到$\rho$  
+    c. 广义最小二乘法(GLS)：基于D-W统计量近似计算得到$\rho$  
+    d. 广义最小二乘法(GLS)：基迭代法近似计算得到$\rho$
+    e. 一致标准误校正法（HAC）：尼威-威斯特(Newey-West)校正法
+
+## 实验案例——印度工人工资
+
+
+**印度工人工资**：表\@ref(tab:data-worker)给出给出了`r n`位印度工人在`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面的数据。
+
+```{r data-worker,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("印度工人工资","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-worker)：
+
+```{r label-worker,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+
+
+## 主要实验步骤 
+
+###  导入数据并进行预处理
+
+*  目标：
+*  思路：
+*  新建Eviews工作文件（见图\@ref(fig:fig-load-worker)）
+    *    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y
+    *    Eviews菜单操作：
+         a. 依次操作：File$\Rightarrow$New$\Rightarrow$Workfile
+         b. 进行workfile create引导设置：
+             + workfile structure type: `unstructured/undatede`
+             + data range：`r n`
+             + workfile names(optional):
+                 - WF: `worker`（**建议命名**）
+                 - Page: `indian`（**建议命名**）  
+
+*  Eviews导入数据
+    *  提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y数据（X数据所有同学都一样）  
+    *  菜单操作（Excel和Eviews）：  
+        a.    Excel找到数据。Excel表格中仅保留自己需要的数据（`r names(table_demo)`）
+        c.    Eviews导入数据。File$\Rightarrow$Import$\Rightarrow$Import From File：`d:/econometrics/data/Lab8-indian-wage.xlsx`
+
+```{r fig-load-worker,message=F,echo=FALSE,fig.cap="导入数据的Eviews视窗"}
+include_graphics(path = "picture/lab8-dummy-model/1-load-worker.png")
+```
+
+###  把定性变量设置成虚拟变量体系
+
+*  目标：学会用一套虚拟变量体系来完整表达一个定性变量
+
+*  思路：按照完备、互斥的法则设置虚拟变量；如果要设置有截距模型，应统筹、优先考虑基础组的虚拟变量设置。
+
+*  Eviews操作：
+
+    1)  把定性变量**教育水平**`r var_x[2]`（m=4）设置成虚拟变量体系。（具体操作见图\@ref(fig:fig-dummy-edu)）
+        a. 命令视窗（Command）依次输入命令（建议分别命名为edu_d1、edu_d2、edu_d3和edu_d4）
+            * `series edu_d1=@recode(edu="illiteracy",1,0)'`
+            * `series edu_d2=@recode(edu="primary",1,0)'`
+            * `series edu_d3=@recode(edu="secondary",1,0)`
+            * `series edu_d4=@recode(edu="higher",1,0)'`
+        b. 运行命令：命令行中按Enter键  
+        c. 查看结果（以组group的形式查看）：
+            * 按住键盘Ctrl+依次点击![](picture/object/Series.png)`edu`、![](picture/object/Series.png)`edu_d1`、![](picture/object/Series.png)`edu_d2`、![](picture/object/Series.png)`edu_d3`、![](picture/object/Series.png)`edu_d4`
+            * 点击鼠标右键$\Rightarrow$ Open $\Rightarrow$ as Group
+
+    2)  把定性变量**合同类型**`r var_x[3]`（m=2）设置成虚拟变量体系。（具体操作见图\@ref(fig:fig-dummy-dpt)）
+        a. 命令视窗（Command）依次输入命令（建议分别命名为dpt_d1和dpt_d2）
+            * `series dpt_d1=@recode(dpt="temporary",1,0)'`
+            * `series dpt_d2=@recode(dpt="permanent",1,0)`
+        b. 运行命令：命令行中按Enter键  
+        c. 查看结果（以组group的形式查看）：
+            * 按住键盘Ctrl+依次点击![](picture/object/Series.png)`dpt`、![](picture/object/Series.png)`dpt_d1`、![](picture/object/Series.png)`dpt_d2`
+            * 点击鼠标右键$\Rightarrow$ Open $\Rightarrow$ as Group
+
+    3)  把定性变量**性别**`r var_x[4]`（m=2）设置成虚拟变量体系。（具体操作见图\@ref(fig:fig-dummy-sex)）
+        a. 命令视窗（Command）依次输入命令（建议分别命名为sex_d1和sex_d2）
+            * `series sex_d1=@recode(sex="female",1,0)'`
+            * `series sex_d2=@recode(sex="male",1,0)`
+        b. 运行命令：命令行中按Enter键  
+        c. 查看结果（以组group的形式查看）：
+            * 按住键盘Ctrl+依次点击![](picture/object/Series.png)`sex`、![](picture/object/Series.png)`sex_d1`、![](picture/object/Series.png)`sex_d2`
+            * 点击鼠标右键$\Rightarrow$ Open $\Rightarrow$ as Group
+
+    4)  说明（[Eviews代码行的解读](http://www.eviews.com/Learning/dummies.html)^[具体细节请参看Eviews在线学习文档，网址http://www.eviews.com/Learning/dummies.html）：
+        a. 代码`series edu_d1=@recode(edu="primary",1,0)`表示给创建一个序列（Series）对象![](picture/object/Series.png)`edu_d1`,并对定性变量对象![](picture/object/Series.png)`edu`进行重新编码处理（recode），并把重新编码处理后的数值赋值给序列（Series）对象![](picture/object/Series.png)`edu_d1`。
+        b. 代码`@recode(edu="primary",1,0)`表示对定性变量对象![](picture/object/Series.png)`edu`进行重新编码处理。具体做法是，如果`edu`的取值为`primary`，则相应赋值为1，或者就相应赋值为0。
+
+        
+```{r fig-dummy-edu,message=F,echo=FALSE,fig.cap="定性变量edu用虚拟变量体系表达"}
+include_graphics(path = "picture/lab8-dummy-model/1-dummy-edu.png")
+```
+
+```{r fig-dummy-dpt,message=F,echo=FALSE,fig.cap="定性变量dpt用虚拟变量体系表达"}
+include_graphics(path = "picture/lab8-dummy-model/1-dummy-dpt.png")
+```
+
+```{r fig-dummy-sex,message=F,echo=FALSE,fig.cap="定性变量sex用虚拟变量体系表达"}
+include_graphics(path = "picture/lab8-dummy-model/1-dummy-sex.png")
+```
+
+#### 操作解读
+
+```{r coding,error=FALSE,echo=FALSE}
+# install.packages('psych')
+require('psych')
+# the base is{'female','illiteracy','temporary'}
+edu_D<-dummy.code(table_demo$edu)
+dimnames(edu_D)[2]<-list(c('edu_D4','edu_D1','edu_D2','edu_D3'))
+dpt_D<-dummy.code(table_demo$dpt)
+dimnames(dpt_D)[2]<-list(c('dpt_D2','dpt_D1'))
+sex_D<-dummy.code(table_demo$sex)
+dimnames(sex_D)[2]<-list(c('sex_D1','sex_D2'))
+# generate dummy-coding data set
+table_code<-cbind(table_demo,edu_D,dpt_D,sex_D)
+```
+
+实际操作中，我们首先要对定性变量进行重新编码，设置成各自的虚拟变量体系。Eviews中对定性变量重新编码为虚拟变量的代码函数为`@recode()`。我们可以事先将一个定性变量**完全地**进行虚拟变量编码^[此时我们可以完全不用关心模型是否有截距（意味着是否有对照比较的**基础组**）]。也就是说，如果一个定性变量有m个属性，我们可以直接设置m个虚拟变量。
+
+此外，便于后续多个模型的分析甄选，我们还应该进一步统一设计虚拟变量的名称、命名的顺序等。例如，假设后续的备选模型中将基础组设定为{文盲，临时工，女性}（也即{illiteracy，temporary，female}）^[理论上，基础组如何选择并不会从根本上改变模型的实际经济学意义，只是一旦选定一个基础组，也就意味着确定了一个相互比较的“基础参照系”。]。则可以将全部定性变量的基础组属性{illiteracy，temporary，female}分别设置为虚拟变量`edu_D1`（见表\@ref(tab:tab-edu)）、`dpt_D1`和`sex_D1`（见表\@ref(tab:tab-dpt-sex)）。
+
+```{r tab-edu,error=FALSE,echo=FALSE,message=FALSE}
+knitr::kable(
+table_code[c(1,2,6,7,12,13,14,15),c('edu',paste0('edu_D',1:4))],
+caption = '用虚拟变量系统完全表达定性变量edu', booktabs = TRUE
+)
+```
+
+```{r tab-dpt-sex,error=FALSE,echo=FALSE,message=FALSE}
+knitr::kable(
+  list(
+    table_code[c(1:3,(n-2):n),c('dpt',paste0('dpt_D',1:2))],
+    table_code[c(1:3,(n-2):n),c('sex',paste0('sex_D',1:2))]
+  ),
+caption = '用虚拟变量系统分别完全表达定性变量dpt和sex', booktabs = TRUE
+)
+```
+
+
+### 只含有虚拟变量的回归模型（考虑基础组的情形）{#group1}
+
+```{r fun-report,echo=FALSE,error=FALSE,results='asis',message=FALSE}
+require('zoo')
+fun_report<-function(out){
+  result<-summary(out)
+  #control the decimal digits
+  mat_x<-result$coefficients 
+  # get the index of matrix elements
+  #n_index<-index(mat_x[,1]) 
+  
+  var_mod<-names(attr(terms(out),"dataClasses")) #get all variable names of the lm object
+  k_mod<-length(mat_x[,1])
+  
+  name_x<-dimnames(mat_x)[[1]] # get names of X
+  name_x[1]<-c('')
+  
+  coef_x<-mat_x[,1] # get coefs of X
+  se_x<-mat_x[,2] # get s.e. of X
+  t_x<-mat_x[,3 ] # get t statistic of X
+  
+  coef_mod<-formatC(abs(coef_x),digits =2,format = 'f') # get the coefs of beta
+  sig_mod<-formatC(result$coefficients[,3],digits =4,format='f') # get t statistics
+  se_mod<-formatC(result$coefficients[,2],digits = 4,format ='f') # get s.e. statistics
+  R2_mod<-formatC(result$r.squared,digits = 4,format ='f')
+  R2_adj_mod<-formatC(result$adj.r.squared,digits = 4,format ='f')
+  F_mod<-formatC(result$fstatistic[1],digits = 4,format ='f')
+  
+  # get the sign of the coef
+  sign_x<-NULL
+  for (i in 1:k_mod){
+    if (coef_x[i]>0){sign_x[i]<-c("+")
+    } else {
+      sign_x[i]<-c("-")
+      }
+  }
+
+  # get the align symbol "&"
+  align_x<-rep('&',k_mod)
+ 
+  # get three lines 
+  fun_line_eq<-function(b,e){
+    paste(align_x[b:e],sign_x[b:e],coef_mod[b:e],name_x[b:e],sep='',collapse = '')
+  }
+  
+  fun_line_t<-function(b,e){
+    paste(align_x[b:e],'(',sig_mod[b:e],')',sep='',collapse = '')
+  }
+  
+  fun_line_se<-function(b,e){
+    paste(align_x[b:e],'(',se_mod[b:e],')',sep='',collapse = '')
+  }
+  # split lines if equation is too long(more than 5 X)
+  if (k_mod<6) {
+    cat(
+      paste0('\\begin{alignedat}{',k_mod,'}'),
+      paste0('& \\widehat{',var_mod[1],'}=',fun_line_eq(1,k_mod)),'\\\\',
+      paste0('& \\text{(t)}',fun_line_t(1,k_mod)),'\\\\',
+      paste0('& \\text{(se)}',fun_line_se(1,k_mod)),'\\\\',
+      paste0('& \\text{(fitness)}',
+             '& \\quad',
+             '& R^2=',R2_mod,
+             '& \\bar{R^2}=',R2_adj_mod,
+             '& F^{\\ast}=',F_mod),
+      '\\end{alignedat}')
+   } else {
+    cat(
+      paste0('\\begin{alignedat}{',5,'}'),
+      paste0('& \\widehat{',var_mod[1],'}=',fun_line_eq(1,5)),'\\\\',
+      paste0('& \\text{(t)}',fun_line_t(1,5)),'\\\\',
+      paste0('& \\text{(se)}',fun_line_se(1,5)),'\\\\',
+      paste0('& \\quad',fun_line_eq(6,k_mod)),'\\\\',
+      paste0('& \\text{(t)}',fun_line_t(6,k_mod)),'\\\\',
+      paste0('& \\text{(se)}',fun_line_se(6,k_mod)),'\\\\',
+      paste0('& \\text{(fitness)}',
+             '& \\quad',
+             '& R^2=',R2_mod,
+             '& \\bar{R^2}=',R2_adj_mod,
+             '& F^{\\ast}=',F_mod),
+      '\\end{alignedat}')
+    }
+  }
+
+```
+
+
+#### 加法模型
+* 目标：把定性变量的虚拟变量以独立项的形式引入模型方程，解释回归报告  
+
+* 思路：确定**基础组**，设置总体回归模型（PRM），进行OLS估计，得到Eviews分析报告  
+
+* 理论提示：
+    * 模型1：只含有虚拟变量的、加法形式的**经典回归模型**见方程\@ref(eq:only-plus)
+    * 模型2：只含有虚拟变量的、加法形式的**半对数回归模型**见方程\@ref(eq:only-plus-log)
+
+\begin{align}
+wage_i & =\alpha_1+\alpha_2edu_{D2,i}+\alpha_3edu_{D3,i}+\alpha_4edu_{D4,i}+\beta_2 dpt_{D2,i}+\gamma_2 sex_{D2,i}+u_i  (\#eq:only-plus) \\
+ln(wage_i) & =\alpha_1+\alpha_2edu_{D2,i}+\alpha_3edu_{D3,i}+\alpha_4edu_{D4,i}+\beta_2 dpt_{D2,i}+\gamma_2 
+sex_{D2,i}+u_i  (\#eq:only-plus-log)\\
+\end{align}
+
+* Eviews操作1（只含有虚拟变量的、加法形式的**经典回归模型**见方程\@ref(eq:only-plus)，菜单操作实现具体见图\@ref(fig:only-plus)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`wage c edu_d2 edu_d3 edu_d4 dpt_d2 sex_d2`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_only_plus`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_only_plus`
+
+具体Eviews报告见\@ref(fig:only-plus-report)：
+
+
+```{r only-plus,message=F,echo=FALSE,fig.cap="只含虚拟变量的、加法形式的经典线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-plus.png")
+```
+
+```{r only-plus-report,message=F,echo=FALSE,fig.cap="只含虚拟变量的、加法形式的经典线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-plus-report.png")
+```
+
+* Eviews操作2（只含有虚拟变量的、加法形式的**半对数回归模型**见方程\@ref(eq:only-plus-log)，菜单操作实现具体见图\@ref(fig:only-plus-log)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`log(wage) c edu_d2 edu_d3 edu_d4 dpt_d2 sex_d2`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_only_plus_log`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_only_plus_log`
+
+具体Eviews报告见\@ref(fig:only-plus-log-report)：
+
+
+```{r only-plus-log,message=F,echo=FALSE,fig.cap="只含虚拟变量的、加法形式的半对数线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-plus-log.png")
+```
+
+```{r only-plus-log-report,message=F,echo=FALSE,fig.cap="只含虚拟变量的、加法形式的半对数线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-plus-report.png")
+```
+
+##### 报告解读
+
+只含虚拟变量的、加法形式的经典回归模型Eviews结果简要报告如下：
+
+```{r latex-o-p,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+only_plus<-lm(wage~edu_D2+edu_D3+edu_D4+dpt_D2+sex_D2,data = table_code)
+fun_report(only_plus)
+```
+
+\begin{alignedat}{5} & \widehat{wage}=&+130.36&+10.47edu_D2&+49.71edu_D3&+162.59edu_D4&+59.37dpt_D2 \\ & \text{(t)}&(7.3397)&(0.3126)&(1.4818)&(2.9944)&(2.3899) \\ & \text{(se)}&(17.7609)&(33.4850)&(33.5470)&(54.2989)&(24.8399) \\ & \quad&-106.49sex_D2 \\ & \text{(t)}&(-3.7005) \\ & \text{(se)}&(28.7784) \\ & \text{(fitness)}& \quad& R^2=0.2204& \bar{R^2}=0.1843& F^{\ast}=6.1053 \end{alignedat}
+
+只含虚拟变量的、加法形式的半对数回归模型Eviews结果简要报告如下：
+
+```{r latex-o-p-l,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+only_plus_log<-lm(log(wage)~edu_D2+edu_D3+edu_D4+dpt_D2+sex_D2,data = table_code)
+fun_report(only_plus_log)
+```
+
+
+#### 乘法模型
+
+* 目标：把定性变量的虚拟变量以交叉项的形式引入模型方程，解释回归报告  
+
+* 思路：确定**基础组**，设置总体回归模型（PRM），进行OLS估计，得到Eviews分析报告  
+
+* 理论提示：
+    * 模型1：只含有虚拟变量的、乘法形式的**经典回归模型**见方程\@ref(eq:only-prod)和方程\@ref(eq:only-prod-part)；
+    * 模型2：只含有虚拟变量的、乘法形式的**半对数回归模型**见方程\@ref(eq:only-prod-log-part)
+
+$$\begin{equation}
+\begin{split}
+wage_i & =\alpha_1+\alpha_2edu_{D2,i}+\alpha_3edu_{D3,i}+\alpha_4edu_{D4,i}+\beta_2 dpt_{D2,i}+\gamma_2sex_{D2,i}
+\\ & +\lambda_2edu_{D2,i} \ast dpt_{D2,i}+\lambda_3edu_{D3,i}\ast dpt_{D2,i} +\lambda_4edu_{D4,i}\ast dpt_{D2,i}+u_i  
+\end{split}
+(\#eq:only-prod) 
+\end{equation}$$
+
+\begin{align}
+\begin{split}
+wage_i & =\alpha_1+\beta_2 dpt_{D2,i}+\gamma_2sex_{D2,i}  \\
+& +\lambda_2edu_{D2,i} \ast dpt_{D2,i}+\lambda_3edu_{D3,i}\ast dpt_{D2,i} +\lambda_4edu_{D4,i}\ast dpt_{D2,i}+u_i 
+\end{split}
+(\#eq:only-prod-part) 
+\end{align}
+
+\begin{align}
+\begin{split}
+ln(wage_i) & =\alpha_1+\beta_2 dpt_{D2,i}+\gamma_2sex_{D2,i} \\
+& +\lambda_2edu_{D2,i} \ast dpt_{D2,i}+\lambda_3edu_{D3,i}\ast dpt_{D2,i}+\lambda_4edu_{D4,i}\ast dpt_{D2,i} +u_i 
+\end{split}
+(\#eq:only-prod-log-part) 
+\end{align}
+
+* Eviews操作1（只含有虚拟变量的、乘法形式的**经典回归模型**见方程\@ref(eq:only-prod)，菜单操作实现具体见图\@ref(fig:only-prod)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`wage c edu_d2 edu_d3 edu_d4 dpt_d2  sex_d2 edu_d2*dpt_d2 edu_d3*dpt_d2 edu_d4*dpt_d2`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_only_prod`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_only_prod`
+
+具体Eviews报告见\@ref(fig:only-prod-report)：
+
+
+```{r only-prod,message=F,echo=FALSE,fig.cap="只含虚拟变量的、乘法形式的经典线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-prod.png")
+```
+
+```{r only-prod-report,message=F,echo=FALSE,fig.cap="只含虚拟变量的、乘法形式的经典线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-prod-report.png")
+```
+
+* Eviews操作2（只含有虚拟变量的、乘法形式的**半对数回归模型**见方程\@ref(eq:only-prod-log-part)，菜单操作实现具体见图\@ref(fig:only-prod-log-part)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`log(wage) c dpt_d2  sex_d2 edu_d2*dpt_d2 edu_d3*dpt_d2 edu_d4*dpt_d2`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_only_prod_log_part`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_only_prod_log_part`
+
+具体Eviews报告见\@ref(fig:only-prod-log-part-report)：
+
+
+```{r only-prod-log-part,message=F,echo=FALSE,fig.cap="只含虚拟变量的、乘法形式的半对数线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-prod-log-part.png")
+```
+
+```{r only-prod-log-part-report,message=F,echo=FALSE,fig.cap="只含虚拟变量的、乘法形式的半对数线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/2-only-prod-log-part-report.png")
+```
+
+##### 报告解读
+
+只含虚拟变量的、乘法形式的经典回归模型（全部变量进入）Eviews结果简要报告如下：
+
+```{r latex-o-prd-f,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+only_prod_full<-lm(wage~edu_D2+edu_D3+edu_D4+dpt_D2+sex_D2+(edu_D2*dpt_D2)+(edu_D3*dpt_D2)+(edu_D4*dpt_D2),data = table_code)
+fun_report(only_prod_full)
+```
+
+只含虚拟变量的、乘法形式的经典回归模型（部分变量进入）Eviews结果简要报告如下：
+
+```{r latex-o-prd-p,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+only_prod_part<-lm(wage~dpt_D2+sex_D2+edu_D2*dpt_D2+edu_D3*dpt_D2+edu_D4*dpt_D2,data = table_code)
+fun_report(only_prod_part)
+```
+
+只含虚拟变量的、乘法形式的半对数回归模型（部分变量进入）Eviews结果简要报告如下：
+```{r latex-o-prd-l-p,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+only_prod_log_part<-lm(log(wage)~dpt_D2+sex_D2+edu_D2*dpt_D2+edu_D3*dpt_D2+edu_D4*dpt_D2,data = table_code)
+fun_report(only_prod_log_part)
+```
+
+### 同时含有虚拟变量和定量变量的回归模型（考虑基础组的情形）{#group2}
+
+#### 加法模型
+
+*  理论提示：
+    * 模型1：同时含有虚拟变量和定量变量的、加法形式的**经典回归模型**见方程\@ref(eq:both-plus)
+    * 模型2：同时含有虚拟变量和定量变量的、加法形式的**半对数回归模型**见方程\@ref(eq:both-plus-log)
+
+\begin{align}
+wage_i & =\alpha_1+\alpha_2edu_{D2,i}+\alpha_3edu_{D3,i}+\alpha_4edu_{D4,i}+\beta_2 dpt_{D2,i}+\gamma_2 sex_{D2,i}+\delta age_i+u_i   (\#eq:both-plus) \\
+ln(wage_i) & =\alpha_1+\alpha_2edu_{D2,i}+\alpha_3edu_{D3,i}+\alpha_4edu_{D4,i}+\beta_2 dpt_{D2,i}+\gamma_2 sex_{D2,i}+\delta age_i+u_i  (\#eq:both-plus-log)
+\end{align}
+
+* Eviews操作1（同时含有虚拟变量和定量变量的、加法形式的**经典回归模型**见方程\@ref(eq:both-plus)，菜单操作实现具体见图\@ref(fig:both-plus)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`wage c edu_d2 edu_d3 edu_d4 dpt_d2 sex_d2 age`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_both_plus`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_both_plus`
+
+具体Eviews报告见\@ref(fig:both-plus-report)：
+
+
+```{r both-plus,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、加法形式的经典线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-plus.png")
+```
+
+```{r both-plus-report,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、加法形式的经典线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-plus-report.png")
+```
+
+* Eviews操作2（同时含有虚拟变量和定量变量的、加法形式的**半对数回归模型**见方程\@ref(eq:both-plus-log)，菜单操作实现具体见图\@ref(fig:both-plus-log)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`log(wage) c edu_d2 edu_d3 edu_d4 dpt_d2 sex_d2 age`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_both_plus_log`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_both_plus_log`
+
+具体Eviews报告见\@ref(fig:both-plus-log-report)：
+
+
+```{r both-plus-log,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、加法形式的半对数线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-plus-log.png")
+```
+
+```{r both-plus-log-report,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、加法形式的半对数线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-plus-log-report.png")
+```
+
+##### 报告解读
+
+同时含虚拟变量和定量变量的、加法形式的经典回归模型Eviews结果简要报告如下：
+
+```{r latex-b-p,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+both_plus<-lm(wage~edu_D2+edu_D3+edu_D4+dpt_D2+sex_D2+age,data = table_code)
+fun_report(both_plus)
+```
+
+同时含虚拟变量和定量变量的、加法形式的半对数回归模型Eviews结果简要报告如下：
+
+```{r latex-b-p-l,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+both_plus_log<-lm(log(wage)~edu_D2+edu_D3+edu_D4+dpt_D2+sex_D2+age,data = table_code)
+fun_report(both_plus_log)
+```
+
+
+#### 乘法模型
+
+*  理论提示：
+    * 模型1：同时含有虚拟变量和定量变量的、乘法形式的**经典回归模型**见方程\@ref(eq:both-prod)
+    * 模型2：同时含有虚拟变量和定量变量的、乘法形式的**半对数回归模型**见方程\@ref(eq:both-prod-log-part)
+
+$$\begin{equation}
+\begin{split}
+wage_i & =\alpha_1+\alpha_2edu_{D2,i}+\alpha_3edu_{D3,i}+\alpha_4edu_{D4,i}+\beta_2 dpt_{D2,i}+\gamma_2sex_{D2,i}+\delta age_i
+\\ & +\lambda_2edu_{D2,i} \ast dpt_{D2,i}+\lambda_3edu_{D3,i}\ast dpt_{D2,i}+\lambda_4edu_{D4,i}\ast dpt_{D2,i}  +u_i  
+\end{split}
+(\#eq:both-prod) 
+\end{equation}$$
+
+\begin{align}
+\begin{split}
+wage_i & =\alpha_1+\beta_2 dpt_{D2,i}+\gamma_2sex_{D2,i} +\delta age_i \\
+& +\lambda_2edu_{D2,i} \ast dpt_{D2,i}+\lambda_3edu_{D3,i}\ast dpt_{D2,i}+\lambda_4edu_{D4,i}\ast dpt_{D2,i} +u_i 
+\end{split}
+(\#eq:both-prod-part) 
+\end{align}
+
+\begin{align}
+\begin{split}
+ln(wage_i) & =\alpha_1+\beta_2 dpt_{D2,i}+\gamma_2sex_{D2,i} +\delta age_i \\
+& +\lambda_2edu_{D2,i} \ast dpt_{D2,i}+\lambda_3edu_{D3,i}\ast dpt_{D2,i} +\lambda_4edu_{D4,i}\ast dpt_{D2,i}+u_i 
+\end{split}
+(\#eq:both-prod-log-part) 
+\end{align}
+
+
+* Eviews操作1（同时含有虚拟变量和定量变量的、乘法形式的**经典回归模型**见方程\@ref(eq:both-prod)，菜单操作实现具体见图\@ref(fig:both-prod)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`wage c edu_d2 edu_d3 edu_d4 dpt_d2 sex_d2 age edu_d2*dpt_d2 edu_d3*dpt_d2 edu_d4*dpt_d2`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_both_prod`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_both_prod`
+
+具体Eviews报告见\@ref(fig:both-prod-report)：
+
+
+```{r both-prod,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、乘法形式的经典线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-prod.png")
+```
+
+```{r both-prod-report,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、乘法形式的经典线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-prod-report.png")
+```
+
+* Eviews操作2（同时含有虚拟变量和定量变量的、乘法形式的**半对数回归模型**见方程\@ref(eq:both-prod-log-part)，菜单操作实现具体见图\@ref(fig:both-prod-log-part)）：
+    1)  确定参照组为[**文盲&短期合同&女性**]，则如下虚拟变量将**不进入**回归模型
+        a. ![](picture/object/Series.png)`edu_d1`
+        b. ![](picture/object/Series.png)`dpt_d1`
+        c. ![](picture/object/Series.png)`sex_d1`
+    2)  设置回归模型。进入引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`log(wage) c dpt_d2 sex_d2 age edu_d2*dpt_d2 edu_d3*dpt_d2 edu_d4*dpt_d2`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为`eq_both_prod_log_part`）
+        c. 查看结果：双击![](picture/object/Equation.png)`eq_both_prod_log_part`
+
+具体Eviews报告见\@ref(fig:both-prod-log-part-report)：
+
+
+```{r both-prod-log-part,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、乘法形式的半对数线性回归模型Eviews实现"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-prod-log-part.png")
+```
+
+```{r both-prod-log-part-report,message=F,echo=FALSE,fig.cap="同时含虚拟变量和定量变量的、乘法形式的半对数线性回归模型Eviews报告"}
+include_graphics(path = "picture/lab8-dummy-model/3-both-prod-log-part-report.png")
+```
+
+##### 报告解读
+
+同时含虚拟变量和定量变量的、乘法形式的经典回归模型（全部变量进入）Eviews结果简要报告如下：
+
+```{r latex-b-prd-f,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+both_prod_full<-lm(wage~edu_D2+edu_D3+edu_D4+dpt_D2+sex_D2+age+(edu_D2*dpt_D2)+(edu_D3*dpt_D2)+(edu_D4*dpt_D2),data = table_code)
+fun_report(both_prod_full)
+```
+
+同时含虚拟变量和定量变量的、乘法形式的经典回归模型（部分变量进入）Eviews结果简要报告如下：
+
+```{r latex-b-prd-p,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+both_prod_part<-lm(wage~dpt_D2+sex_D2+age+edu_D2*dpt_D2+edu_D3*dpt_D2+edu_D4*dpt_D2,data = table_code)
+fun_report(both_prod_part)
+```
+
+同时含虚拟变量和定量变量的、乘法形式的半对数回归模型（部分变量进入）Eviews结果简要报告如下：
+```{r latex-b-prd-l-p,error=FALSE,results='asis',message=FALSE,echo=FALSE}
+both_prod_log_part<-lm(log(wage)~dpt_D2+sex_D2+age+edu_D2*dpt_D2+edu_D3*dpt_D2+edu_D4*dpt_D2,data = table_code)
+fun_report(both_prod_log_part)
+```
+
+
+### 时间序列季节虚拟变量模型{#seasonal}
+
+* 目的：通过学习时间序列季节虚拟变量模型，进一步深入理解虚拟变量回归模型的多种形式及应用  
+* 思路：设置并引入季节虚拟变量，构建时间序列季节虚拟变量模型，Eviews估计回归结果  
+* 定义：
+    * 季节模式（seasonal pattern）：大多数时间序列经济变量，通常表现出来的季节性往复行为或现象。
+    * 季节调整（seasonal adjusted）：将时间序列经济变量的季节性变化成分去除，从而得到一个新的变量序列的处理过程。  
+
+* 理论提示：
+   * 事实上，一个时间序列经济变量往往同时存在四个成分，分别是季节成分（seasonal component）、周期成分（cyclical component）、趋势成分（trend component）和严格随机成分（strictly random component）。
+   * 根据基础组的有无，可以构建以第一季度为基础组的时间序列季节虚拟变量模型\@ref(eq:S1)和无基础组的时间序列季节虚拟变量模型\@ref(eq:S0)。其中，$X_t$为定量变量。
+
+\begin{align}
+Y_t=\beta_1+\beta_2X_t+\lambda_2D2_t+\lambda_3D3_t+\lambda_4D4_t+u_t (\#eq:S1)\\
+Y_t=\beta_2X_t+\lambda_1D1_t+\lambda_2D2_t+\lambda_3D3_t+\lambda_4D4_t+u_t (\#eq:S0)
+\end{align}
+
+
+
+* Eviews操作（略）
+
+
+### 分段线性回归模型（piecewise linear regression）{#piecewise}
+
+* 目的：通过学习分段式线性回归模型，进一步深入理解虚拟变量回归模型的多种形式及应用
+* 思路：设置并引入虚拟变量，构建分段线性回归模型，Eviews估计回归结果
+* 定义：
+    * **分段**现象：在经济关系中，当解释变量$X$的值达到某一水平/阀值$X^\ast$之前，与被解释变量之间存在某种线性关系；当解释变量X的值达到或者超过水平/阀值$X^\ast$以后，与被解释变量的关系就会发生变化。因而总体看来，似乎被明显“分段”了。
+    * 分段线性回归模型（piecewise linear regression）：是指用虚拟变量估计不同水平/阀值的解释变量$X$对被解释变量$Y$的影响的一类线性回归模型。
+
+* 理论提示：
+    * 一个阀值的分段线性回归模型\@ref(eq:PIR1)
+    * 两个阀值的分段线性回归模型\@ref(eq:PIR2)
+
+\begin{align}
+Y_i & =\beta_1+\beta_2X_i+\lambda(X_i-X^{\ast})D_i+u_i (\#eq:PIR1)\\
+Y_i & =\beta_1+\beta_2X_i+\lambda_1(X_i-X^{\ast}_1)D1_i+\lambda_2(X_i-X^{\ast}_2)D2_i+u_i (\#eq:PIR2)
+\end{align}
+
+* Eviews操作（略）
+
+## 作业题
+
+```{r load-worker-lab,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab8-indian-wage.xlsx",range="A1:F115")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("工人编号","工人工资","年龄",'教育水平','合同类型','性别')
+remark<-c('序号','美元/周','岁','illiteracy=文盲；primary=初等教育；secondary=中等教育；higher=高等教育','temporary=短期合同；permanent=长期合同','female=女；male=男')
+table_label<-as.data.frame(list(variable=names(table_demo),label=label,remark=remark))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+**印度工人工资**：表\@ref(tab:data-worker-lab)给出给出了`r n`位印度工人在`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面的数据。
+
+```{r data-worker-lab,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("印度工人工资","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-worker-lab)：
+
+```{r label-worker-lab,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+
+请回答如下问题:   
+
+1. 请对数据表\@ref(tab:data-worker-lab)进行数据处理，将定性变量都处理成**完全**虚拟变量体系（也即定性变量有m个属性，则设置m个虚拟变量）。（要求：定性变量edu的虚拟变量设置为edu_D1,edu_D2,$\cdots$；定性变量dpt的虚拟变量设置为dpt_D1,$\cdots$；定性变量sex的虚拟变量设置为sex_D1,$\cdots$。虚拟变量的下标请与变量说明表\@ref(tab:label-worker-lab)的保持一致）
+
+2. 使用**全部变量**，并提出一个**加法形式**的有截距虚拟变量回归模型，用以预测工人工资。要求基础组设置为（**文盲&短期合同&女性**）的工人组。
+    a. 请写出加法形式的有截距虚拟变量回归模型（PRM）
+    b. 请利用你自己构建的模型，进行eviews分析，得到分析报告。（要求将报告截图过来，并写出相应的简要报告形式——三行式或四行式）
+    c. 根据回归分析结果，请预测如下几类工人的工资水平：（要求分别写出理论表达式，以及数据分析的预测值）
+        * （**文盲&短期合同&女性&50岁**）的工人
+        * （**高等教育&长期合同&男性&50岁**）的工人
+        * （**初等教育&短期合同&男性&30岁**）的工人
+        * （**初等教育&长期合同&女性&30岁**）的工人
+
+
+3. 使用**全部变量**，并提出一个**乘法形式**的有截距虚拟变量回归模型，用以预测工人工资。要求基础组设置为（**文盲&短期合同&女性**）的工人组，且要求教育程度edu的虚拟变量（edu_D1,edu_D2,$\cdots$）与合同类型dpt的虚拟变量（dpt_D1,$\cdots$）进行乘法交互。
+    a. 请写出该乘法形式的有截距虚拟变量回归模型（PRM）
+    b. 请利用你自己构建的模型，进行eviews分析，得到分析报告。（要求将报告截图过来，并写出相应的简要报告形式——三行式或四行式）
+    c. 根据回归分析结果，请预测如下几类工人的工资水平：（要求分别写出理论表达式，以及数据分析的预测值）
+        * （**文盲&短期合同&女性&50岁**）的工人
+        * （**高等教育&长期合同&男性&50岁**）的工人
+        * （**初等教育&短期合同&男性&30岁**）的工人
+        * （**初等教育&长期合同&女性&30岁**）的工人
+
+
+4. 使用**全部变量**，对因变量ln(wage)提出一个**乘法形式**的有截距虚拟变量回归模型，用以预测工人工资。要求基础组设置为（**文盲&短期合同&女性**）的工人组，且要求性别sex的虚拟变量（sex_D1,$\cdots$）与合同类型dpt的虚拟变量（dpt_D1,$\cdots$）进行乘法交互。
+    a. 请写出该乘法形式的有截距虚拟变量回归模型（PRM）
+    b. 请利用你自己构建的模型，进行eviews分析，得到分析报告，并回答如下问题。（要求将报告截图过来，并写出相应的简要报告形式——三行式或四行式）
+        * 你认为这些新引入的交互项看上去有显著的交互影响吗?
+        * 男性工人与女性工人相比，收入存在明显差异吗？请给出你的理由。
+        * 长期合同的男性工人与长期合同的女性工人，收入存在明显差异吗？请给出你的理由。
+        * 短期合同的男性工人与长期合同的女性工人，收入存在明显差异吗？请给出你的理由。
+    c. 根据回归分析结果，请预测如下几类工人的工资水平：（要求分别写出理论表达式，以及数据分析的预测值）
+        * （**文盲&短期合同&女性&50岁**）的工人
+        * （**高等教育&长期合同&男性&50岁**）的工人
+        * （**初等教育&短期合同&男性&30岁**）的工人
+        * （**初等教育&长期合同&女性&30岁**）的工人
+
+
+5. 使用**除教育edu变量之外**的其他全部变量，对因变量ln(wage)提出一个**乘法形式**的有截距虚拟变量回归模型，用以预测工人工资。要求基础组设置为（**文盲&短期合同&女性**）的工人组,且要求教育程度edu的虚拟变量（edu_D1,edu_D2,$\cdots$）与合同类型dpt的虚拟变量（dpt_D1,$\cdots$）进行乘法交互。
+    a. 请写出该乘法形式的有截距虚拟变量回归模型（PRM）
+    b. 请利用你自己构建的模型，进行eviews分析，得到分析报告，并回答如下问题。（要求将报告截图过来，并写出相应的简要报告形式——三行式或四行式）
+        * 你认为这些新引入的交互项看上去有显著的交互影响吗?
+        * 高等数育的工人与初等教育的工人，收入存在明显差异吗？请给出你的理由。
+        * [高等教育的长期合同工人]与[高等教育的短期合同工人]，收入存在明显差异吗？请给出你的理由。
+        * [高等教育的短期合同工人]与[初等教育的长期合同工人]，收入存在明显差异吗？请给出你的理由。
+    c. 根据回归分析结果，请预测如下几类工人的工资水平：（要求分别写出理论表达式，以及数据分析的预测值）
+        * （**文盲&短期合同&女性&50岁**）的工人
+        * （**高等教育&长期合同&男性&50岁**）的工人
+        * （**初等教育&短期合同&男性&30岁**）的工人
+        * （**初等教育&长期合同&女性&30岁**）的工人
+
+
+

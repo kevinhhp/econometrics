@@ -1,0 +1,1864 @@
+\documentclass[12pt,(landscape,a4paper),(portrait,a4paper)]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={计量经济学Eviews实验指导书},
+            pdfauthor={胡华平},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{longtable,booktabs}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+  \title{计量经济学Eviews实验指导书}
+  \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+\subtitle{Lab 5 多重共线性的诊断和矫正}
+  \author{胡华平}
+  \preauthor{\centering\large\emph}
+  \postauthor{\par}
+  \predate{\centering\large\emph}
+  \postdate{\par}
+  \date{2018/3/27}
+
+\usepackage{xeCJK}
+\setCJKmainfont{楷体}  % 字体可以更换
+\setmainfont{Georgia} % 設定英文字型
+\setromanfont{Georgia} % 字型
+\setmonofont{Courier New}
+
+%设置版式 垂直或水平
+% You know, for landscape
+\usepackage{lscape}
+\usepackage{pdfpages}
+
+
+% Make new page before each section
+\let\stdsection\section
+\renewcommand\section{\newpage\stdsection}
+
+% pandoc does not parse latex env - https://groups.google.com/forum/?fromgroups=#!topic/pandoc-discuss/oZETB5Ii1Cw
+\newcommand{\blandscape}{\begin{landscape}}
+\newcommand{\elandscape}{\end{landscape}}
+
+\begin{document}
+\maketitle
+
+\renewcommand{\figurename}{图}
+\renewcommand{\contentsname}{目录}
+\renewcommand{\tablename}{表}
+
+
+%% maxwidth is the original width if it's less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\newpage
+
+\section{实验目的及要求}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{目的}：掌握多重共线性的检验与处理方法。
+\item
+  \textbf{要求}：在老师指导下完成计量经济模型的多重共线性检验，并对存在多重共线性的模型进行修正，最终得到正确的分析结果。
+\end{itemize}
+
+\section{实验原理}
+
+线性回归模型的解释变量不满足相互独立的基本假设前提下，如果模型的解释变量存在多重共线性，将导致最小二乘法得到的模型参数估计量非有效且方差变大，参数估计量经济含义不合理等。
+
+\subsection{多重共线性诊断的经验方法：}
+
+\begin{enumerate}
+\def\labelenumi{\alph{enumi}.}
+\tightlist
+\item
+  观察主回归方程分析报告：建立主回归方程，分析回归报告结果。
+
+  \begin{itemize}
+  \tightlist
+  \item
+    主回归分析报告的\(R^2\)值高（大于0.8），\(F^{\ast}\)检验显著，但不显著的\(t^\ast\)检验较多（多于回归系数个数的一半及以上）
+  \end{itemize}
+\item
+  矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵。
+
+  \begin{itemize}
+  \tightlist
+  \item
+    相关系数矩阵发现高度线性相关（相关系数大于0.8）
+  \item
+    散点图矩阵发现高度线性相关的数据分布模式
+  \end{itemize}
+\item
+  分析辅助回归方程：首先构建主回归方程，然后分别构建回归元之间的辅助回归方程。
+
+  \begin{itemize}
+  \tightlist
+  \item
+    辅助回归方程的判定系数\(R^2_j\)大于主回归方程的判定系数\(R^2\)
+  \item
+    辅助回归方程的方差膨胀因子：\(VIF_j\in[10,100]\)表明中度多重共线性；\(VIF_j\geq{100}\)表明严重多重共线性
+  \item
+    辅助回归方程的的容忍度：\(TOL_j\in[0.01,0.1]\)表明中度多重共线性；\(TOL_j\leq{0.01}\)表明严重多重共线性
+  \end{itemize}
+\item
+  主成分分析法(principal
+  components)：计算特征值(eigenvalues)，进而得到病态数(\(k\))和病态指数\(CI=\sqrt{k}\)
+
+  \begin{itemize}
+  \tightlist
+  \item
+    病态数：\(k \in[100,1000]\)表明中度多重共线性；\(k \geq{1000}\)表明严重多重共线性
+  \item
+    病态指数：\(CI \in[10,30]\)表明中度多重共线性；\(CI \geq{30}\)表明严重多重共线性
+  \end{itemize}
+\end{enumerate}
+
+\subsection{多重共线性修正方法：}
+
+\begin{enumerate}
+\def\labelenumi{\alph{enumi}.}
+\tightlist
+\item
+  简单剔除变量法：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    依据经济学和实践经验观察，进行变量甄选或变量变换
+  \end{itemize}
+\item
+  逐步回归法：包括前向逐步回归(forward stepwise)和后向逐步回归(backward
+  stepwise)
+
+  \begin{itemize}
+  \tightlist
+  \item
+    p值判别法：\(p\in[0.1,0.05)\)(比较显著)；\(p\in[0.05,0.01)\)(比较显著)；\(p\leq 0.01\)(极其显著)
+  \item
+    \(t^{\ast}\)值判别法：2t法则
+  \end{itemize}
+\item
+  补充新数据（有时候有用！）
+
+  \begin{itemize}
+  \tightlist
+  \item
+    由于多重共线性是一个样本特性，故有可能在关于同样变量的另一样本中共线性没有第一个样本那么严重
+  \end{itemize}
+\item
+  多项式回归模型中离差形式或正交多项式(orthogonal
+  polynomials)以降低共线性的影响
+
+  \begin{itemize}
+  \tightlist
+  \item
+    多项式回归模型的一个特点是解释变量以不同的幂出现，从而容易导致多重共线性
+  \end{itemize}
+\item
+  拯救多重共线性的其他方法
+
+  \begin{itemize}
+  \tightlist
+  \item
+    脊回归(ridge regression) 常被用来``解决''多重共线性问题。
+  \item
+    主成分分析法
+
+    \begin{itemize}
+    \tightlist
+    \item
+      先根据主成分分析确定主成分个数(看累积解释百分比)
+    \item
+      再用主成分得分（scoring）序列进行回归分析
+    \end{itemize}
+  \end{itemize}
+\end{enumerate}
+
+\newpage
+
+\section{实验内容}
+
+\subsection{实验方案设计}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  采用最小二乘法建立主回归模型
+\item
+  侦查模型是否存在多重共线性：
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    观察主回归方程分析报告：建立主回归方程，分析回归报告结果。
+
+    \begin{itemize}
+    \tightlist
+    \item
+      主回归分析报告的\(R^2\)值高（大于0.8），\(F^{\ast}\)检验显著，但不显著的\(t^\ast\)检验较多（多于回归系数个数的一半及以上）
+    \end{itemize}
+  \item
+    矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵。
+
+    \begin{itemize}
+    \tightlist
+    \item
+      相关系数矩阵发现高度线性相关（相关系数大于0.8）
+    \item
+      散点图矩阵发现高度线性相关的数据分布模式
+    \end{itemize}
+  \item
+    分析辅助回归方程：首先构建主回归方程，然后分别构建回归元之间的辅助回归方程。
+
+    \begin{itemize}
+    \tightlist
+    \item
+      辅助回归方程的判定系数\(R^2_j\)大于主回归方程的判定系数\(R^2\)
+    \item
+      辅助回归方程的方差膨胀因子：\(VIF_j\in[10,100]\)表明中度多重共线性；\(VIF_j\geq{100}\)表明严重多重共线性
+    \item
+      辅助回归方程的的容忍度：\(TOL_j\in[0.01,0.1]\)表明中度多重共线性；\(TOL_j\leq{0.01}\)表明严重多重共线性
+    \end{itemize}
+  \item
+    主成分分析法(principal
+    components)：计算特征值(eigenvalues)，进而得到病态数(\(K\))和病态指数\(CI=\sqrt{k}\)
+
+    \begin{itemize}
+    \tightlist
+    \item
+      病态数：\(K \in[100,1000]\)表明中度多重共线性；\(K \geq{1000}\)表明严重多重共线性
+    \item
+      病态指数：\(CI \in[10,30]\)表明中度多重共线性；\(CI \geq{30}\)表明严重多重共线性
+    \end{itemize}
+  \end{enumerate}
+\item
+  根据上述对多重共线性的诊断，对模型进行合理修正：
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    简单剔除变量法：
+
+    \begin{itemize}
+    \tightlist
+    \item
+      依据经济学和实践经验观察，进行变量甄选或变量变换
+    \end{itemize}
+  \item
+    逐步回归法：包括前向逐步回归(forward
+    stepwise)和后向逐步回归(backward stepwise)
+
+    \begin{itemize}
+    \tightlist
+    \item
+      p值判别法：\(p\in[0.1,0.05)\)(比较显著)；\(p\in[0.05,0.01)\)(比较显著)；\(p\leq 0.01\)(极其显著)
+    \item
+      \(t^{\ast}\)值判别法：2t法则
+    \end{itemize}
+  \item
+    补充新数据（有时候有用！）
+
+    \begin{itemize}
+    \tightlist
+    \item
+      由于多重共线性是一个样本特性，故有可能在关于同样变量的另一样本中共线性没有第一个样本那么严重
+    \end{itemize}
+  \item
+    多项式回归模型中离差形式或正交多项式(orthogonal
+    polynomials)以降低共线性的影响
+
+    \begin{itemize}
+    \tightlist
+    \item
+      多项式回归模型的一个特点是解释变量以不同的幂出现，从而容易导致多重共线性
+    \end{itemize}
+  \item
+    拯救多重共线性的其他方法
+
+    \begin{itemize}
+    \tightlist
+    \item
+      脊回归(ridge regression) 常被用来``解决''多重共线性问题。
+    \item
+      主成分分析法
+
+      \begin{itemize}
+      \tightlist
+      \item
+        先根据主成分分析确定主成分个数(看累积解释百分比)
+      \item
+        再用主成分得分（scoring）序列进行回归分析
+      \end{itemize}
+    \end{itemize}
+  \end{enumerate}
+\end{enumerate}
+
+\newpage
+
+\hypertarget{class-data}{%
+\subsection{实验背景------郎利数据(class data)}\label{class-data}}
+
+\textbf{就业情况的郎利数据}：表\ref{tab:longley-long}给出美国1947-1961年间就业情况及主要影响因素的数据表。
+
+\begin{table}
+
+\caption{\label{tab:longley-long}美国劳动力市场的郎利调研数据(n=16)}
+\centering
+\begin{tabular}[t]{r|r|r|r|r|r|r|r}
+\hline
+Year & Y & X1 & X2 & X3 & X4 & X5 & X6\\
+\hline
+1947 & 60323 & 830 & 234289 & 2356 & 1590 & 107608 & 1\\
+\hline
+1948 & 61122 & 885 & 259426 & 2325 & 1456 & 108632 & 2\\
+\hline
+1949 & 60171 & 882 & 258054 & 3682 & 1616 & 109773 & 3\\
+\hline
+1950 & 61187 & 895 & 284599 & 3351 & 1650 & 110929 & 4\\
+\hline
+1951 & 63221 & 962 & 328975 & 2099 & 3099 & 112075 & 5\\
+\hline
+1952 & 63639 & 981 & 346999 & 1932 & 3594 & 113270 & 6\\
+\hline
+1953 & 64989 & 990 & 365385 & 1870 & 3547 & 115094 & 7\\
+\hline
+1954 & 63761 & 1000 & 363112 & 3578 & 3350 & 116219 & 8\\
+\hline
+1955 & 66019 & 1012 & 397469 & 2904 & 3048 & 117388 & 9\\
+\hline
+1956 & 67857 & 1046 & 419180 & 2822 & 2857 & 118734 & 10\\
+\hline
+1957 & 68169 & 1084 & 442769 & 2936 & 2798 & 120445 & 11\\
+\hline
+1958 & 66513 & 1108 & 444546 & 4681 & 2637 & 121950 & 12\\
+\hline
+1959 & 68655 & 1126 & 482704 & 3813 & 2552 & 123366 & 13\\
+\hline
+1960 & 69564 & 1142 & 502601 & 3931 & 2514 & 125368 & 14\\
+\hline
+1961 & 69331 & 1157 & 518173 & 4806 & 2572 & 127852 & 15\\
+\hline
+1962 & 70551 & 1169 & 554894 & 4007 & 2827 & 130081 & 16\\
+\hline
+\end{tabular}
+\end{table}
+
+变量说明见表\ref{tab:label-show}：
+
+\begin{table}
+
+\caption{\label{tab:label-show}变量定义及说明}
+\centering
+\begin{tabular}[t]{l|l}
+\hline
+variable & label\\
+\hline
+Year & 年份\\
+\hline
+Y & 就业人数(打)\\
+\hline
+X1 & 消费价格指数\\
+\hline
+X2 & 名义GNP\\
+\hline
+X3 & 失业人数\\
+\hline
+X4 & 军队人数\\
+\hline
+X5 & 14岁以上的非机构人口数\\
+\hline
+X6 & 时间趋势\\
+\hline
+\end{tabular}
+\end{table}
+
+~
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+Y_t=\hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t}
+\label{eq:model-longley}
+\end{equation}
+
+请回答如下问题:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  根据回归模型\eqref{eq:model-longley}，写出总体回归模型（PRM），并对参数的理论预期（符号、大小、关系）进行说明。\\
+  答：\\
+  PRM：\\
+  参数预期：
+\item
+  利用Eviews对样本回归模型\eqref{eq:model-longley}进行回归分析（将报告截图过来，并写出相应的简要报告形式------三行式或四行式）。参数估计结果符合你的理论预期么？\\
+  答：\\
+  报告截图：\\
+  简要报告（三行式或四行式）：\\
+  参数估计结果是否符合你前面的理论预期：
+\item
+  数据中存在多重共线性的证据吗?（请以此按照下列方法进行诊断）：
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \item
+    根据上题中主回归报告结果，观察t检验，判定系数，F检验的关系，请你得出关于多重共线性的初步结论。\\
+    答：
+  \item
+    利用Eviews绘制矩阵散点图(matrix
+    scatter)（截图过来），请你得出关于多重共线性的初步结论。\\
+    答：
+  \item
+    利用Eviews得到简单相关系数矩阵（截图过来），请你得出关于多重共线性的初步结论。\\
+    答:
+  \item
+    利用Eviews进行辅助回归诊断（完成下表，并将8个辅助回归结果依次截图过来），请你得出关于多重共线性的初步结论。\\
+    答：
+  \end{enumerate}
+\end{enumerate}
+
+\begin{longtable}[]{@{}llc@{}}
+\caption{主回归和辅助回归的判定系数计算}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.15\columnwidth}\raggedright
+回归类型\strut
+\end{minipage} & \begin{minipage}[b]{0.55\columnwidth}\raggedright
+模型设置\strut
+\end{minipage} & \begin{minipage}[b]{0.20\columnwidth}\centering
+判定系数\(R^2=\)\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.15\columnwidth}\raggedright
+回归类型\strut
+\end{minipage} & \begin{minipage}[b]{0.55\columnwidth}\raggedright
+模型设置\strut
+\end{minipage} & \begin{minipage}[b]{0.20\columnwidth}\centering
+判定系数\(R^2=\)\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+主回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+Y 对全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+辅助回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+X1 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+辅助回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+X2 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+辅助回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+X3 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+辅助回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+X4 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+辅助回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+X5 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.15\columnwidth}\raggedright
+辅助回归\strut
+\end{minipage} & \begin{minipage}[t]{0.55\columnwidth}\raggedright
+X6 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.20\columnwidth}\centering
+\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{enumerate}
+\def\labelenumi{\alph{enumi}.}
+\setcounter{enumi}{4}
+\tightlist
+\item
+  请按下列要求完成下表和提问：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    利用上表结果，计算方差膨胀因子和容忍度指标；
+  \item
+    利用Eviews菜单，对主模型\eqref{eq:model-longley}操作，得到方差膨胀因子(截图并列出结果到下表中)
+  \item
+    根据上述结果，请你得出关于多重共线性的初步结论。\\
+    答：
+  \end{itemize}
+\end{enumerate}
+
+\begin{longtable}[]{@{}llll@{}}
+\caption{方差膨胀因子VIF和容忍度TOL的计算与比较}\tabularnewline
+\toprule
+\begin{minipage}[b]{0.52\columnwidth}\raggedright
+辅助模型 设置\strut
+\end{minipage} & \begin{minipage}[b]{0.11\columnwidth}\raggedright
+容忍度 \(TOL_j\)\strut
+\end{minipage} & \begin{minipage}[b]{0.11\columnwidth}\raggedright
+辅助模型 \(VIF_j\)\strut
+\end{minipage} & \begin{minipage}[b]{0.13\columnwidth}\raggedright
+主模型 VIF\strut
+\end{minipage}\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+\begin{minipage}[b]{0.52\columnwidth}\raggedright
+辅助模型 设置\strut
+\end{minipage} & \begin{minipage}[b]{0.11\columnwidth}\raggedright
+容忍度 \(TOL_j\)\strut
+\end{minipage} & \begin{minipage}[b]{0.11\columnwidth}\raggedright
+辅助模型 \(VIF_j\)\strut
+\end{minipage} & \begin{minipage}[b]{0.13\columnwidth}\raggedright
+主模型 VIF\strut
+\end{minipage}\tabularnewline
+\midrule
+\endhead
+\begin{minipage}[t]{0.52\columnwidth}\raggedright
+X1 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.13\columnwidth}\raggedright
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.52\columnwidth}\raggedright
+X2 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.13\columnwidth}\raggedright
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.52\columnwidth}\raggedright
+X3 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.13\columnwidth}\raggedright
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.52\columnwidth}\raggedright
+X4 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.13\columnwidth}\raggedright
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.52\columnwidth}\raggedright
+X5 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.13\columnwidth}\raggedright
+\strut
+\end{minipage}\tabularnewline
+\begin{minipage}[t]{0.52\columnwidth}\raggedright
+X6 对其他全部\(X_i\)\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.11\columnwidth}\raggedright
+\strut
+\end{minipage} & \begin{minipage}[t]{0.13\columnwidth}\raggedright
+\strut
+\end{minipage}\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{enumerate}
+\def\labelenumi{\alph{enumi}.}
+\setcounter{enumi}{5}
+\tightlist
+\item
+  按下列要求计算病态数(K)和病态指数（CI）：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    利用Eviews对7个自变量进行主成分(principal
+    components)分析（将结果截图过来）
+  \item
+    得到特征值(eigenvalues)向量（将结果截图过来）
+  \item
+    计算病态数(K)和病态指数（CI）（写出计算公式和计算结果）
+  \item
+    根据上述结果，请你得出关于多重共线性的初步结论。\\
+    答：\\
+  \end{itemize}
+\end{enumerate}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{2}
+\tightlist
+\item
+  若存在多重共线性问题，那你会采用什么补救措施(如果有的话)?
+
+  \begin{enumerate}
+  \def\labelenumii{\alph{enumii}.}
+  \tightlist
+  \item
+    简单剔除变量法------经济学和实践观察法。请写明剔除变量的理由，并将纠正后模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？\\
+    答：\\
+  \item
+    简单剔除变量法------逐步回归法。将逐步回归后模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？\\
+    答：\\
+  \item
+    主成分法(principal
+    components)。将因子回归模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？（此题选作）\\
+    答：
+  \end{enumerate}
+\end{enumerate}
+
+~ 【本次实验题目完毕啦！！】
+
+\newpage
+
+\section{主要实验步骤}
+
+\subsection{导入数据并进行预处理}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：
+\item
+  思路：
+\item
+  新建Eviews工作文件（workfile）
+
+  \begin{itemize}
+  \tightlist
+  \item
+    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y
+  \item
+    Eviews菜单操作：
+
+    \begin{enumerate}
+    \def\labelenumi{\alph{enumi}.}
+    \tightlist
+    \item
+      依次操作：File\(\Rightarrow\)New\(\Rightarrow\)Workfile
+    \item
+      进行workfile create引导设置：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        workfile structure type: \texttt{unstructured/undatede}
+      \item
+        data range：16
+      \item
+        workfile names(optional):
+
+        \begin{itemize}
+        \tightlist
+        \item
+          WF: \texttt{longley}（\textbf{建议命名}）
+        \item
+          Page: \texttt{employee}（\textbf{建议命名}）
+        \end{itemize}
+      \end{itemize}
+    \end{enumerate}
+  \end{itemize}
+\item
+  导入数据
+
+  \begin{itemize}
+  \tightlist
+  \item
+    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y数据（X数据所有同学都一样）\\
+  \item
+    菜单操作（Excel和Eviews）：
+
+    \begin{enumerate}
+    \def\labelenumi{\alph{enumi}.}
+    \tightlist
+    \item
+      Excel找到数据。Excel表格中仅保留自己需要的数据（Year, Y, X1, X2,
+      X3, X4, X5, X6）
+    \item
+      Eviews导入数据。File\(\Rightarrow\)Import\(\Rightarrow\)Import
+      From File：\texttt{d:/econometrics/data/Lab5-longley-long-lab.csv}
+    \end{enumerate}
+  \end{itemize}
+\end{itemize}
+
+\subsection{采用最小二乘法建立主回归模型}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：
+\item
+  思路：
+\item
+  提示：主回归模型为
+\end{itemize}
+
+\[Y_t=\hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t}\]
+
+\begin{itemize}
+\tightlist
+\item
+  Eviews菜单操作：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \item
+    依次选择\(\Rightarrow\)Quick\(\Rightarrow\)Estimation Equation\\
+  \item
+    引导设置Equation Estimation\(\Rightarrow\)specification
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      Equation specification：输入命令 Y c X1 X2 X3 X4 X5 X6
+    \item
+      Estimation settings：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        Method: 下拉选择\texttt{LS\ -\ Least\ Squares\ (NLS\ and\ ARMA)}
+      \item
+        Sample: \textbf{默认设置}
+      \end{itemize}
+    \item
+      点击\texttt{OK}\\
+    \end{enumerate}
+  \item
+    模型命名：建议为\texttt{eq\_m0}
+
+    主回归分析结果见图\ref{fig:fig-main}：
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/1-main-model} 
+
+}
+
+\caption{主回归模型Eviews建模操作}\label{fig:fig-main}
+\end{figure}
+
+\subsection{侦查模型是否存在多重共线性：}
+
+\subsubsection{观察主回归方程分析报告，分析回归报告结果，得出初步结论。}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：观察\(t^{\ast}\)检验，判定系数\(R^2\)，\(F^{\ast}\)检验的关系
+\item
+  思路：
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    主回归分析报告的\(R^2\)值高（大于0.8）
+  \item
+    \(F^{\ast}\)检验显著
+  \item
+    不显著的\(t^\ast\)检验较多（斜率系数个数的一半及以上）
+  \end{itemize}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/1-report-main} 
+
+}
+
+\caption{主回归模型Eviews报告}\label{fig:fig-main-report}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  分析结论：
+  根据主回归报告（见\ref{fig:fig-main-report}），下列证据将表明模型可能存在\textbf{严重}的多重共线性问题：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    判定系数\(R^2=0.9955\)，表明样本回归线拟合较好
+  \item
+    \(F^{\ast}=330.2853\)，对应的概率值\(p=0.0000\)，表明F检验极显著
+  \item
+    斜率系数\(t^\ast\)检验不显著的有3个（主模型全部斜率系数共有6个），分别是X1，X2，X5。
+  \end{itemize}
+\end{itemize}
+
+\begin{table}
+
+\caption{\label{tab:t-no}t检验不显著的斜率系数}
+\centering
+\begin{tabular}[t]{l|r|r}
+\hline
+  & t value & Pr(>|t|)\\
+\hline
+X1 & 0.1774 & 0.8631\\
+\hline
+X2 & -1.0695 & 0.3127\\
+\hline
+X5 & -0.2261 & 0.8262\\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：观察\(t^{\ast}\)检验，判定系数\(R^2\)，\(F^{\ast}\)检验的关系
+\item
+  思路：
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    散点图矩阵发现高度线性相关的数据分布模式
+  \item
+    相关系数矩阵发现高度线性相关（相关系数大于0.8）
+  \end{itemize}
+\item
+  Eviews菜单操作：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    构造X数据的组对象（group）:
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      依次选择X变量：X1，X2，X3，X4，X5，X6
+    \item
+      以组对象打开，鼠标右键：Open as group
+    \item
+      命名并保存组对象：name（\textbf{建议命名}为\texttt{group\_x}）
+    \end{enumerate}
+  \item
+    绘制散点图矩阵
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      进入group视窗：双击打开组对象\texttt{group\_x}
+    \item
+      进入引导菜单：\(\Rightarrow\) View \(\Rightarrow\) Graph
+
+      \begin{itemize}
+      \tightlist
+      \item
+        选择绘图类型(Graph type)：Scatter
+      \item
+        选择绘图细节(Detail)：Multiple series \(\Rightarrow\)
+        下拉框选中Scatterplot matrix
+      \end{itemize}
+    \item
+      点击完成：OK
+    \item
+      命名并保存绘图（graph）对象\includegraphics{picture/object/Graph.png}：（建议命名为scatter\_matrix）
+    \item
+      查看结果：双击\includegraphics{picture/object/Graph.png}scatter\_matrix
+      （见图\ref{fig:fig-cor}）
+    \end{enumerate}
+  \item
+    制作得到相关系数矩阵表格（table）
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      进入group视窗：双击打开组（group）对象\includegraphics{picture/object/Group.png}group\_x\\
+    \item
+      进入引导菜单：\(\Rightarrow\) View \(\Rightarrow\) Covariance
+      Analysis
+
+      \begin{itemize}
+      \tightlist
+      \item
+        选择分析类型(Statistics)：只勾选Correlation
+      \item
+        其他设置细节：（默认设置）
+      \item
+        点击完成：OK
+      \end{itemize}
+    \item
+      将上述组（group）对象\includegraphics{picture/object/Group.png}group\_x另存为表格（table）对象\includegraphics{picture/object/Table.png}
+
+      \begin{itemize}
+      \tightlist
+      \item
+        另存为表格(table)对象：点击Freeze
+      \item
+        命名并保存表格(table)对象：点击name(建议为tab\_cor)
+      \end{itemize}
+    \item
+      查看结果：双击\includegraphics{picture/object/Table.png}tab\_cor
+      （见图\ref{fig:fig-scatter}）
+    \end{enumerate}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/2-tab-cor} 
+
+}
+
+\caption{自变量X间相关系数矩阵的Eviews操作}\label{fig:fig-cor}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/2-scatter-matrix} 
+
+}
+
+\caption{自变量X间散点矩阵图的Eviews操作}\label{fig:fig-scatter}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  分析结论
+  根据相关系数矩阵表（图@ref:(fig:fig-cor）和散点矩阵图（图\ref{fig:fig-scatter}），我们发现有6对X变量呈现明显线性相关关系，分别是：
+\end{itemize}
+
+X1 VS X2：\(r_{2,1}=0.9916\)
+
+X1 VS X2：\(r_{2,1}\)=0.9916
+
+X1 VS X5：\(r_{5,1}\)=0.9792
+
+X1 VS X6：\(r_{6,1}\)=0.9911
+
+X2 VS X5：\(r_{5,2}\)=0.9911
+
+X2 VS X6：\(r_{6,2}\)=0.9953
+
+X5 VS X6：\(r_{6,5}\)=0.994
+
+\subsubsection{辅助回归分析法：}
+
+\begin{itemize}
+\tightlist
+\item
+  定义：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    主回归模型(Main Model)是指Y变量对全部X变量的线性回归。
+  \item
+    辅助回归模型(Auxiliary Model)是指一个X变量对其他X变量的线性回归。
+  \end{itemize}
+\end{itemize}
+
+\begin{align}
+Y_t & = \hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t} && \text{( M0 )} \label{eq:M0} \\
+X_{1t}& = \hat{\alpha}_0+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A1 )} \label{eq:A1} \\
+X_{2t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A2 )} \label{eq:A2} \\
+X_{3t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A3 )} \label{eq:A3} \\
+X_{4t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A4 )} \label{eq:A4} \\
+X_{5t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A5 )} \label{eq:A5} \\
+X_{6t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+e_{t} && \text{( A6 )} \label{eq:A6} 
+\end{align}
+
+\hypertarget{6}{%
+\paragraph{构建6个辅助回归方程}\label{6}}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：构建并得到6个辅助回归方程及其Eviews报告。
+\item
+  思路：分别构建一个X变量对其他X变量的线性回归，共会得到6个辅助回归方程的Eviews报告。
+\item
+  提示：此处仅以A1 \eqref{eq:A1}为例，其他辅助模型类似操作。
+\item
+  Eviews菜单操作（具体操作演示见图\ref{fig:fig-auxiliary}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    依次选择\(\Rightarrow\) Quick \(\Rightarrow\) Estimation Equation\\
+  \item
+    引导设置Equation Estimation \(\Rightarrow\) specification
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      Equation specification：输入命令 X1 c X2 X3 X4 X5 X6
+    \item
+      Estimation settings：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        Method: 下拉选择LS - Least Squares (NLS and ARMA)
+      \item
+        Sample: （默认设置）
+      \end{itemize}
+    \item
+      点击完成：OK
+    \item
+      命名保存方程对象\includegraphics{picture/object/Equation.png}：（建议命名为eq\_a1，其他辅助回归方程依次命名为eq\_a2，\ldots{}，eq\_a6）
+    \item
+      查看结果：双击\includegraphics{picture/object/Equation.png}eq\_a1
+    \end{enumerate}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-auxiliary-model} 
+
+}
+
+\caption{辅助回归Eviews操作过程}\label{fig:fig-auxiliary}
+\end{figure}
+
+全部6个辅助回归方程的Eviews分析报告结果：A1辅助模型见图\ref{fig:fig-A1}；A2辅助模型见图\ref{fig:fig-A2}；A3辅助模型见图\ref{fig:fig-A3}；A4辅助模型见图\ref{fig:fig-A4}；A5辅助模型见图\ref{fig:fig-A5}；A6辅助模型见图\ref{fig:fig-A6}；
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-A1} 
+
+}
+
+\caption{辅助回归模型A1的Eviews报告}\label{fig:fig-A1}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-A2} 
+
+}
+
+\caption{辅助回归模型A2的Eviews报告}\label{fig:fig-A2}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-A3} 
+
+}
+
+\caption{辅助回归模型A3的Eviews报告}\label{fig:fig-A3}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-A4} 
+
+}
+
+\caption{辅助回归模型A4的Eviews报告}\label{fig:fig-A4}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-A5} 
+
+}
+
+\caption{辅助回归模型A5的Eviews报告}\label{fig:fig-A5}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-A6} 
+
+}
+
+\caption{辅助回归模型A6的Eviews报告}\label{fig:fig-A6}
+\end{figure}
+
+\paragraph{判定系数比较法}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：分别6个辅助回归方程的判定系数\(R^2_j(j=1,\cdots,6)\)，比较它们与主模型判定系数\(R^2\)的大小关系。\\
+\item
+  思路：分别提取辅助回归方程的Eviews报告中的判定系数。\\
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    操作提示：构造一个列向量（vector）对象\includegraphics{picture/object/Vector.png}（含6个元素），把6个辅助回归方程的判定系数依次放置其中。
+  \item
+    诊断提示：辅助回归方程的判定系数\(R^2_j(j=1,\cdots,6)\)大于主回归方程的判定系数\(R^2\)\\
+  \end{itemize}
+\item
+  Eviews菜单操作（见图\ref{fig:fig-r2}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    构建一个列向量（vector）对象\includegraphics{picture/object/Vector.png}（含6个元素），建议命名为r2
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      命令视窗（Command）输入命令 ：\texttt{vector(6)\ r2}
+    \item
+      运行命令：命令行中按Enter键
+    \end{enumerate}
+  \item
+    提取6个辅助回归方程的判定系数，并依次放置到列向量（vector）对象\includegraphics{picture/object/Vector.png}r2中。在命令视窗（Command）中依次输入并运行下列命令：
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      提取并放置辅助模型A1方程\eqref{eq:A1}的\(R^2_1\)：\texttt{r2.fill(o=1)\ eq\_a1.@r2}
+    \item
+      提取并放置辅助模型A2方程\eqref{eq:A2}的\(R^2_2\)：\texttt{r2.fill(o=2)\ eq\_a2.@r2}
+    \item
+      提取并放置辅助模型A3方程\eqref{eq:A3}的\(R^2_3\)：\texttt{r2.fill(o=3)\ eq\_a3.@r2}
+    \item
+      提取并放置辅助模型A4方程\eqref{eq:A4}的\(R^2_4\)：\texttt{r2.fill(o=4)\ eq\_a4.@r2}
+    \item
+      提取并放置辅助模型A5方程\eqref{eq:A5}的\(R^2_5\)：\texttt{r2.fill(o=5)\ eq\_a5.@r2}
+    \item
+      提取并放置辅助模型A6方程\eqref{eq:A6}的\(R^2_6\)：\texttt{r2.fill(o=6)\ eq\_a6.@r2}
+    \item
+      查看结果：双击\includegraphics{picture/object/Vector.png}r2
+    \end{enumerate}
+  \item
+    说明（\href{http://www.eviews.com/help/helpintro.html\#page/content/Regress1-Equation_Output.html}{Eviews代码行的解读}\footnote{具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html\#page/content/Regress1-Equation\_Output.html}）：
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      代码\texttt{r2.fill(o=1)}表示给列向量（vector）对象\includegraphics{picture/object/Vector.png}r2的第1个元素（\texttt{o=1}）赋值（\texttt{.fill}）
+    \item
+      代码\texttt{eq\_a1.@r2}表示提取方程（equation）对象\includegraphics{picture/object/Equation.png}eq\_a1的判定系数\(R^2\)（\texttt{.@r2}）
+    \end{enumerate}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-vector-R2} 
+
+}
+
+\caption{辅助回归模型A1~A6的判定系数提取汇总操作}\label{fig:fig-r2}
+\end{figure}
+
+根据上述比较分析，判定系数比较法的结论初步认为模型\eqref{eq:M0}可能存在严重的多重共线性问题理由如下：
+
+\begin{longtable}[]{@{}lll@{}}
+\caption{主回归和辅助回归的判定系数(分析结果) \label{tab:R2}}\tabularnewline
+\toprule
+回归类型 & 模型设置 & 判定系数\(R^2=\)\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+回归类型 & 模型设置 & 判定系数\(R^2=\)\tabularnewline
+\midrule
+\endhead
+辅助回归 & X1对其他全部\(X_i\) & 0.9926\tabularnewline
+辅助回归 & X2对其他全部\(X_i\) & 0.9994\tabularnewline
+辅助回归 & X3对其他全部\(X_i\) & 0.9703\tabularnewline
+辅助回归 & X4对其他全部\(X_i\) & 0.7214\tabularnewline
+辅助回归 & X5对其他全部\(X_i\) & 0.9975\tabularnewline
+辅助回归 & X6其他全部\(X_i\) & 0.9987\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{vif}{%
+\paragraph{方差膨胀因子（VIF）比较法}\label{vif}}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：分别得到6个辅助回归方程的方差膨胀因子\(VIF_j(j=1,\cdots,6)\)，与参考值进行比较，得到相关结论。\\
+\item
+  思路：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Eviews手动计算：根据6个辅助回归方程的判定系数\(R^2_j\)（见表\ref{tab:R2}），分别计算得到各自的方差膨胀因子\(VIF_j\)。
+  \item
+    Eviews方程提取：利用Eviews菜单功能Coefficient Diagnostics
+    \(\Rightarrow\) Variance Inflation Factors
+    一次性得到主回归模型的Eviews方程\includegraphics{picture/object/Equation.png}eq\_m0全部方差膨胀因子\(VIF_j(j=1,\cdots,6)\)\\
+  \end{itemize}
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    操作提示：构造一个列向量（vector）对象\includegraphics{picture/object/Vector.png}（含6个元素），用来装载6个辅助回归方程的方差膨胀因子\(VIF_j(j=1,\cdots,(6))\)。\\
+  \item
+    诊断提示：辅助回归方程的方差膨胀因子中如果\(VIF_j\in[10,100]\)表明中度多重共线性；如果\(VIF_j\geq{100}\)表明严重多重共线性
+  \item
+    公式提示：辅助回归方程方差膨胀因子的理论计算公式为
+  \end{itemize}
+\end{itemize}
+
+\begin{equation}
+VIF_j=\frac{1}{1-R^2_j},(j=1,\cdots,6) 
+\label{eq:VIF}
+\end{equation}
+
+\begin{itemize}
+\tightlist
+\item
+  （方法1）Eviews操作（手动计算实现，具体见图\ref{fig:fig-vector-VIF}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    计算准备。创建一个常数列向量（vector）对象\includegraphics{picture/object/Vector.png}unit（含6个元素），使其元素全部为1（建议将该常数列向量命名为unit）
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      命令视窗（Command）输入命令 ：\texttt{vector(6)\ unit=1}
+    \item
+      运行命令：命令行中按Enter键
+    \item
+      查看结果：双击\includegraphics{picture/object/Vector.png}unit\\
+    \end{enumerate}
+  \item
+    计算\(VIF_j\)。根据理论计算公式\eqref{eq:VIF}，对常数列向量\includegraphics{picture/object/Vector.png}unit和判定系数向量\includegraphics{picture/object/Vector.png}r2进行运算，得到方差膨胀因子向量\includegraphics{picture/object/Vector.png}vif（建议将方差膨胀因子向量命名为vif）
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      命令视窗（Command）输入命令
+      ：\texttt{vector\ vif=@ediv(unit,(unit-r2))}
+    \item
+      运行命令：命令行中按Enter键
+    \item
+      查看结果：双击\includegraphics{picture/object/Vector.png}vif\\
+    \end{enumerate}
+  \item
+    说明（\href{http://www.eviews.com/help/helpintro.html\#page/content/matrixref-Matrix_Language_Reference.html}{Eviews代码行的解读}\footnote{具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html\#page/content/matrixref-Matrix\_Language\_Reference.html}）：
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      代码\texttt{vector(6)\ vif=@ediv(unit,(unit-r2))}表示生成一个名为vif列向量（vector）对象\includegraphics{picture/object/Vector.png}vif（\texttt{vector\ vif}），并使该列向量等于另外两个向量之除（\texttt{=@ediv(unit,(unit-r2))}）
+    \item
+      代码\texttt{@ediv(unit,(unit-r2))}表示用Eviews矩阵函数\texttt{@ediv(vector1,vector2)}两个向量进行元素相除的计算。
+    \end{enumerate}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-vector-VIF} 
+
+}
+
+\caption{辅助回归模型A1~A6的VIF手动提取操作}\label{fig:fig-vector-VIF}
+\end{figure}
+
+\begin{itemize}
+\tightlist
+\item
+  （方法2）Eviews操作（菜单操作实现，具体见图\ref{fig:fig-tab-VIF}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    打开主方程：双击方程（equation）对象\includegraphics{picture/object/Equation.png}eq\_m0\\
+  \item
+    进入功能菜单：
+
+    \begin{itemize}
+    \tightlist
+    \item
+      选择分析菜单：\(\Rightarrow\) View \(\Rightarrow\) Coefficient
+      Diagnostics \(\Rightarrow\) Variance Inflation Factors
+    \item
+      另存为表格(table)对象：点击Freeze
+    \item
+      命名并保存表格(table)对象：点击name(建议为tab\_vif)
+    \item
+      查看结果：双击\includegraphics{picture/object/Table.png}tab\_vif
+    \end{itemize}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-tab-VIF} 
+
+}
+
+\caption{辅助回归模型A1~A6的VIF系统提取操作}\label{fig:fig-tab-VIF}
+\end{figure}
+
+\hypertarget{tol}{%
+\paragraph{容忍度（TOL）比较法}\label{tol}}
+
+\begin{itemize}
+\tightlist
+\item
+  目标：分别得到6个辅助回归方程的容忍度\(TOL_j(j=1,\cdots,6)\)，与参考值进行比较，得到相关结论。\\
+\item
+  思路：根据6个辅助回归方程的判定系数\(R^2_j\)（见表\ref{tab:R2}），分别计算得到各自的容忍度\(TOL_j\)。\\
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    操作提示：构造一个列向量（vector）对象\includegraphics{picture/object/Vector.png}（含6个元素），用来装载6个辅助回归方程的容忍度\(TOL_j(j=1,\cdots,(6))\)
+  \item
+    诊断提示：辅助回归方程的的容忍度如果\(TOL_j\in[0.01,0.1]\)表明中度多重共线性；如果\(TOL_j\leq{0.01}\)表明存在严重的多重共线性
+  \item
+    公式提示：辅助回归方程容忍度的理论计算公式为
+  \end{itemize}
+\end{itemize}
+
+\begin{equation}
+VIF_j=1-R^2_j=\frac{1}{VIF_j},(j=1,\cdots,6) 
+\label{eq:TOL}
+\end{equation}
+
+\begin{itemize}
+\tightlist
+\item
+  Eviews操作（手动计算，具体见图\ref{fig:fig-TOL}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    计算\(TOL_j\)。根据理论计算公式\eqref{eq:TOL}，对常数列向量\includegraphics{picture/object/Vector.png}unit和判定系数向量\includegraphics{picture/object/Vector.png}r2进行运算，得到容忍度向量\includegraphics{picture/object/Vector.png}tol（建议将容忍度向量命名为tol）
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      命令视窗（Command）输入命令 ：\texttt{vector\ tol=unit-r2}
+    \item
+      运行命令：命令行中按Enter键
+    \item
+      查看计算结果：双击\includegraphics{picture/object/Vector.png}tol
+    \end{enumerate}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/3-vector-TOL} 
+
+}
+
+\caption{辅助回归模型A1~A6的TOL手动提取操作}\label{fig:fig-TOL}
+\end{figure}
+
+\hypertarget{coefficient-variance-decomposition}{%
+\subsubsection{回归系数方差分解法（Coefficient Variance
+Decomposition）（选学）}\label{coefficient-variance-decomposition}}
+
+\begin{itemize}
+\item
+  目标：利用Eviews的共线性诊断菜单，进行回归系数方差分解（Coefficient
+  Variance Decomposition）。分析病态数（Condition
+  Numbers，K）和方差分解比率（variance-decomposition
+  proportions，VDP），并与参考值进行比较，得到相关结论
+\item
+  思路：特征值（Eigenvalue）；病态数（condition
+  number，K）；方差分解比率（variance-decomposition proportions，VDP）
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    操作提示：用Eviews的共线性诊断菜单 \(\Rightarrow\) View
+    \(\Rightarrow\) Coefficient Diagnostics \(\Rightarrow\) Coefficient
+    Variance Decomposition
+  \item
+    诊断提示：若发现至少一个病态数\(K \leq{(0.001}\)，则表明存在严重多重共线性；观察病态数最小时所对应的方差分解比率，如果有多个斜率系数的\(VDP \geq{0.5}\)
+    ，则表明它们存在严重的多重共线性
+  \item
+    理论提示：该诊断方法由Belsley, Kuh and Welsch (BKW)
+    2004提出，具体细节可以参考\href{http://www.eviews.com/help/helpintro.html\#page/content/testing-Coefficient_Diagnostics.html}{Eviews帮助文档}\footnote{具体细节可以参考Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html\#page/content/testing-Coefficient\_Diagnostics.html}。注意，Eviews分析的病态数是基于矩阵\(\mathbf{(X'X)^{-1}}\)，而不是基于矩阵\(\mathbf{X}\)
+  \end{itemize}
+
+  \[\widehat{var}\_\widehat{cov}(\mathbf{\hat{\beta}})=\hat{\sigma}^2\mathbf{(X'X)^{-1}}\]
+\item
+  Eviews操作（菜单操作实现，具体见图\ref{fig:fig-cvd}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    打开主方程：双击方程（equation）对象\includegraphics{picture/object/Equation.png}eq\_m0\\
+  \item
+    进入功能菜单：
+
+    \begin{itemize}
+    \tightlist
+    \item
+      选择分析菜单：\(\Rightarrow\) View \(\Rightarrow\) Coefficient
+      Diagnostics \(\Rightarrow\) Coefficient Variance Decomposition
+    \item
+      另存为表格(table)对象：点击Freeze
+    \item
+      命名并保存表格(table)对象：点击name(建议为tab\_cvd)
+    \item
+      查看结果：双击\includegraphics{picture/object/Table.png}tab\_cvd
+      （具体Eviews报告见\ref{fig:fig-cvd-report}）
+    \end{itemize}
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/4-table-cvd} 
+
+}
+
+\caption{主回归模型系数方差分解的操作过程}\label{fig:fig-cvd}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/4-vcd-full-result} 
+
+}
+
+\caption{主回归模型系数方差分解的Eviews报告}\label{fig:fig-cvd-report}
+\end{figure}
+
+\subsection{对存在多重共线性的模型进行修正}
+
+\subsubsection{简单剔除变量法}
+
+\begin{itemize}
+\item
+  目标：根据某种考虑或规则，删除特定变量，重新估计回归模型，得到相关结论。
+\item
+  思路：面对严重的共线性，最简单的方法就是去掉某些变量，但剔除变量会导致设定误差。实际中需要权衡利弊。
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    酌情删除：经济学和实践观察法
+  \item
+    巧妙删除：变量变换法
+  \item
+    规则删除：逐步回归法
+  \end{itemize}
+\end{itemize}
+
+\paragraph{经济学和实践观察法}
+
+\begin{itemize}
+\tightlist
+\item
+  提示：
+
+  \begin{itemize}
+  \item
+    理论提示：利用先验信息（成为研究领域的专家！）酌情删除特定变量，减弱模型的多重共线性问题。那怎样才能获得先验信息呢？它往往源自经验研究工作或者有关基础理论。
+  \item
+    操作提示：
+
+    \begin{itemize}
+    \tightlist
+    \item
+      改用真实GNP，不用名义GNP（X2）：将名义GNP（X2）除以价格指数CPI（X1）
+    \item
+      留下14 岁以上非机构人口数（X5），去掉时间趋势（X6）：14
+      岁以上非机构人口数随时间不断增长，它与时间趋势变量高度相；而且时间趋势变量还和很多其他变量高度相关。
+    \item
+      去掉失业人数变量（X3）：可能失业率是劳动力市场状况的一个更好的度量指标，但我们没有这方面的数据，而失业人数也没有充分的理由包括进来。
+    \end{itemize}
+  \end{itemize}
+\item
+  Eviews操作（菜单操作实现，见图\ref{fig:fig-adj-man}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \item
+    变量变换，生成实际GNP（=名义GNP/CPI）（见图\ref{fig:fig-adj-man}）
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      命令视窗（Command）输入命令 ：\texttt{series\ x\_rgnp=X2/X1}
+    \item
+      运行命令：命令行中按Enter键
+    \item
+      查看计算结果\\
+    \end{enumerate}
+  \item
+    引导设置Equation Estimation\(\Rightarrow\)specification
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      Equation specification：输入命令 Y c x\_rgnp X3 X4 X5
+    \item
+      Estimation settings：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        Method: 下拉选择\texttt{LS\ -\ Least\ Squares\ (NLS\ and\ ARMA)}
+      \item
+        Sample: \textbf{默认设置}
+      \end{itemize}
+    \item
+      点击\texttt{OK}\\
+    \end{enumerate}
+  \item
+    模型命名：建议为\texttt{eq\_adj\_man}
+
+    主回归分析结果如图：
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/5-model-adj-man} 
+
+}
+
+\caption{多重共线性问题模型的矫正：酌情删除法}\label{fig:fig-adj-man}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/5-new-X} 
+
+}
+
+\caption{多重共线性模型的变量变换操作}\label{fig:fig-new-X}
+\end{figure}
+
+\paragraph{变量变换法}
+
+\hypertarget{first-difference-form}{%
+\subparagraph{一阶差分法(first difference
+form)：}\label{first-difference-form}}
+
+\begin{itemize}
+\tightlist
+\item
+  理论提示：模型中两个解释变量\(X_{k,i}\)和\(X_{w,i}\)可能导致高度多重共线性，但是分别对二者进行一阶差分，再进行回归建模，新模型可能的多重共线性问题很可能大大缓解！具体变换如下:
+\end{itemize}
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2,t}+\beta_3X_{3,t}+u_t && \text{原模型} \label{eq:diff0} \\
+Y_{t-1} & =\beta_1+\beta_2X_{2,t-1}+\beta_3X_{3,t-1}+u_{t-1} && \text{滞后1阶变量模型} \label{eq:diff1} \\
+Y_t-Y_{t-1} & =\beta_2(X_{2,t}-X_{2,t-1})+\beta_3(X_{3,t}-X_{3,t-1})+(u_t-u_{t-1}) && \text{一阶差分模型} \label{eq:diff} \\
+Y^{\ast}_t &=\beta_2X^{\ast}_{2,t}+\beta_3X^{\ast}_{3,t}+v_t && \text{精简化模型} \label{eq:diff-new}
+\end{align}
+
+\begin{itemize}
+\tightlist
+\item
+  提醒：``按下葫芦浮起瓢''，治疗比疾病更糟糕？差分变换\(Y_{t-1}\)减少了自由度；同时\(v_t=(u_t-u_{t-1})\)可能带来异方差问题。
+\end{itemize}
+
+\hypertarget{ratio-transformation}{%
+\subparagraph{比率变换法(ratio
+transformation)}\label{ratio-transformation}}
+
+\begin{itemize}
+\tightlist
+\item
+  理论提示：模型中两个解释变量\(X_{k,i}\)和\(X_{w,i}\)可能导致高度多重共线性，如果可以用其中的一个变量同时对模型其他变量进行比率变换，而且如果变换后的所有变量还能具有经济学含义，那么理论上将至少消掉一个回归元，从而大大缓解甚至消除多重共线性问题！具体变换如下:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    消费支出决定案例：\(Y_t\)
+    为以真实价格表示的消费支出，\(X_{2,t}\)表示GDP，
+    \(X_{3,t}\)表示总人口。
+  \end{itemize}
+\end{itemize}
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2,t}+\beta_3X_{3,t}+u_t && \text{原模型} \label{eq:trans0} \\
+\frac{Y_t}{X_{3,t}} & =\frac{\beta_1}{X_{3,t}}+\beta_2\frac{X_{2,t}}{X_{3,t}}+\frac{u_t}{X_{3,t}} && \text{比率变换模型} \label{eq:trans} \\
+Y^{\ast}_t &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2,t}+v_t && \text{精简化模型} \label{eq:trans-new}
+\end{align}
+
+\begin{itemize}
+\tightlist
+\item
+  提醒：``按下葫芦浮起瓢''，治疗比疾病更糟糕？\(v_t=\frac{u_t}{X_{3,t}}\)可能带来异方差问题。
+\end{itemize}
+
+\hypertarget{stepwise-least-squares-regression}{%
+\paragraph{逐步最小二乘回归法（Stepwise Least Squares
+Regression）}\label{stepwise-least-squares-regression}}
+
+\begin{itemize}
+\tightlist
+\item
+  提示：
+
+  \begin{itemize}
+  \tightlist
+  \item
+    理论提示：逐步最小二乘回归法（Stepwise Least Squares
+    Regression）通过多个统计标准，可以自动判断模型该引入还是删除某些自变量X。这些统计标准主要包括分析引入新变量对回归平方和ESS的贡献大小，及F检验等。
+  \item
+    \href{http://www.eviews.com/help/helpintro.html\#page/content/Regress2-Stepwise_Least_Squares_Regression.html\%5D}{操作提示}\footnote{具体细节可参看Eviews说明书，网址http://www.eviews.com/help/helpintro.html\#page/content/Regress2-Stepwise\_Least\_Squares\_Regression.html}：
+
+    \begin{itemize}
+    \tightlist
+    \item
+      前向逐步回归法（Stepwise-Forwards），是从一个简化模型（很少X变量）开始，再逐步引入新的X变量，直至达到某个统计标准（主要是p值标准）
+    \item
+      后向逐步回归法（Stepwise-Backwards），是从一个完全模型（全部X变量）开始，对模型逐步删除某些X变量，直至剩余变量都达到某个统计标准（主要是p值标准）
+    \end{itemize}
+  \end{itemize}
+\item
+  Eviews操作（以后向逐步回归法为例，见图\ref{fig:fig-adj-step}）：
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi})}
+  \tightlist
+  \item
+    依次选择\(\Rightarrow\) Quick \(\Rightarrow\) Estimation Equation\\
+  \item
+    引导设置Equation Estimation \(\Rightarrow\) Specification
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      输入因变量和选择一直保留的自变量（Dependent variable followed by
+      list of always included regressors）： Y
+      （此处如果仅填Y变量，则任何X变量都没有强制一定要留在模型中）
+    \item
+      输入自变量（List of search regressors）：c X1 c X2 c X3 c X4 c X5
+      c X6
+    \item
+      估计方法（Estimation settings）：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        Method：下拉选择\texttt{STEPLS\ -\ stepwise\ Least\ Squares}
+      \item
+        Sample： \textbf{默认设置}
+      \end{itemize}
+    \end{enumerate}
+  \item
+    引导设置Equation Estimation \(\Rightarrow\) Options
+
+    \begin{enumerate}
+    \def\labelenumii{\alph{enumii}.}
+    \tightlist
+    \item
+      方法设置（Selection Method）：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        下拉选择Stepwise
+      \item
+        点击选择Backwards
+      \end{itemize}
+    \item
+      标准设置（Stopping Criteria）：
+
+      \begin{itemize}
+      \tightlist
+      \item
+        点击选择p-value
+      \item
+        填写（p-value forwards）：0.05
+      \item
+        填写（p-value backwards）：0.05
+      \item
+        其他：默认设置
+      \end{itemize}
+    \item
+      权重设置（Weights）：默认设置
+    \item
+      步数设置（Maximum steps）：默认设置
+    \item
+      完成设置：点击\texttt{OK}\\
+    \end{enumerate}
+  \item
+    模型命名：建议为\texttt{eq\_adj\_step}\\
+  \item
+    查看分析报告（见图\ref{fig:fig-adj-step-report}）
+  \end{enumerate}
+\end{itemize}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/5-medel-adj-step-show} 
+
+}
+
+\caption{多重共线性模型的矫正：后向逐步回归法}\label{fig:fig-adj-step}
+\end{figure}
+
+\begin{figure}
+
+{\centering \includegraphics[width=8in]{picture/lab5-multilinearity/5-medel-adj-step-full-report} 
+
+}
+
+\caption{多重共线性模型的后向逐步回归法矫正报告}\label{fig:fig-adj-step-report}
+\end{figure}
+
+\hypertarget{principal-components}{%
+\subsubsection{主成分法(Principal
+Components)（自学）}\label{principal-components}}
+
+
+\end{document}

@@ -1,0 +1,654 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 4 多元线性回归及矩阵运算"
+author: "胡华平"
+date: "2018/3/27"
+output: 
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    keep_tex: true
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: true
+    toc_depth: 3
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+```{r global_options, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(out.height = '8in',fig.align='center',background = 'red ') # Places figures on their own pages
+```
+
+```{r setup, include=FALSE,echo=FALSE,eval=FALSE}
+install.packages("yaml")
+library("yaml")
+yaml::yaml.load(
+'output:
+  pdf_document:
+    latex_engine: xelatex')
+```
+    
+\newpage
+
+# 实验目的及要求
+
+*  **目的**：掌握多元线性回归模型的估计、检验。
+*  **要求**：在老师指导下完成多元线性回归模型的建立、估计、统计检验，得到正确的分析结果；能运用矩阵方法实现前述操作。
+
+
+# 实验原理
+*  当多元线性回归模型在满足线性模型古典假设的前提下，最小二乘估计结果具有无偏性、有效性等性质，在此基础上进一步对估计所得的模型进行经济意义检验及统计检验。
+
+## k变量线性回归模型的矩阵表达
+
+k变量总体回归模型(PRF)的代数表达式如下：
+
+\begin{equation}
+Y_i=\beta_1+\beta_2X_{2i}+\beta_2X_{2i}+\cdots++\beta_kX_{ki}+u_i
+(\#eq:PRM-algebra) 
+\end{equation}
+
+如果样本数为n，则k变量总体回归模型矩阵表达为：
+
+\begin{equation}
+  \begin{bmatrix}
+  Y_1 \\  Y_2 \\  \cdots \\  Y_n \\
+  \end{bmatrix}  =
+  \begin{bmatrix}
+  1 &  X_{21} & X_{31} & \cdots &  X_{k1} \\
+  1 &  X_{22} & X_{32} & \cdots &  X_{k2} \\
+  \cdots &  \cdots & \cdots & \cdots &  \cdots \\
+  1 &  X_{2n} & X_{3n} & \cdots &  X_{kn}
+  \end{bmatrix}
+  \begin{bmatrix}
+  \beta_1 \\  \beta_2 \\  \vdots \\  \beta_k \\
+  \end{bmatrix}+
+  \begin{bmatrix}
+  u_1 \\  u_2 \\  \vdots \\  u_n \\
+  \end{bmatrix}
+(\#eq:PRM-agbmat) 
+\end{equation}
+
+\begin{equation}
+\mathbf{y} = \mathbf{X}\mathbf{\beta}+\mathbf{u}
+(\#eq:PRM-matrix) 
+\end{equation}
+
+\begin{equation}
+(n \times 1) = (n \times n) (k \times 1)+(n \times 1)
+\end{equation}
+  
+##  经典线性回归模型假定的矩阵表述
+
+## OLS估计及BLUE性质证明的矩阵表达
+
+## 对回归系数进行显著性检验
+
+## 对回归模型进行总体显著性检验
+
+### 方差分析表(ANOVA)的矩阵表述
+
+### 总体模型显著性的F检验
+
+## 用多元回归做预测:矩阵表述
+
+
+
+\newpage
+
+# 实验内容
+
+ 
+```{r create_data,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+set.seed(123)
+library("knitr")
+# get students data
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+k<-dim(students)[1]
+# get case data
+rose<-readxl::read_xlsx(path = "data/lab4-rose-demand-origin.xlsx",range="A12:F28")
+n<-dim(rose)[1]
+# create random Y data
+rdm<-matrix(rnorm(k*n),nrow=k) #GET RANDOM NUMBERS
+rose_rdm<-rdm+matrix(rep(t(rose$Y),k),nrow=k,byrow=TRUE)
+rose_rdm<-format(rose_rdm,digits = 2,nsmall = 2)
+# get X data
+x_data<-subset(rose,select = c("YEAR","X2","X3","X4","X5"))
+# get all exercise data table
+table_exercise<-as.matrix(cbind(x_data,t(rose_rdm)))
+# get students data table
+table_students<-cbind(matrix(rep(names(x_data),dim(students)[2]),nrow=dim(students)[2],byrow=TRUE),t(students))
+# conbine students data & fixed X data & random Y data
+table_lab<-as.data.frame(rbind(table_students,table_exercise))
+name_row<-c(names(students),paste0("n",1:n))
+name_col<-c(names(x_data),paste0("Ydata",1:k))
+dimnames(table_lab)<-list(name_row,name_col)
+# write table for lab exercise
+write.csv(table_lab,"data/lab4-rose-demand-lab.csv")
+```
+
+
+```{r load-data,message=F,echo=FALSE,include=FALSE}
+math_matrix<-readxl::read_xlsx(path = "data/lab4-matrix-math.xlsx")
+table_demo<-readxl::read_xlsx(path = "data/lab4-rose-demand-origin.xlsx",range="A12:F28")
+# give the exersice variable data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+# give the eviews name data
+var_name<-data.frame(t(math_matrix$name_eviews))
+names(var_name)<-math_matrix$name_eng
+# give the math data
+var_math<-data.frame(t(math_matrix$math))
+names(var_math)<-math_matrix$name_eng
+
+```
+
+## 实验方案设计
+
+在Eviews中运用**矩阵方法**，计算如下步骤:
+
+*  计算直线回归方程的回归系数向量($\mathbf{\hat{\beta}}$)，并写出样本回归模型（$SRM$）。
+*  计算回归误差方差($\hat{\sigma}^2$)和回归误差标准差($\hat{\sigma}$)。
+*  计算回归系数的样本方差协方差矩阵($\widehat{var}\_\widehat{cov}$)。
+*  得出回归系数的样本标准差向量($S_{\hat{\beta}}$)。
+*  进行平方和分解，计算$TSS$、$ESS$和$RSS$。
+*  计算判定系数$R^2$，调整判定系数($\hat{R}^2$)。
+*  计算样本t统计量($\mathbf{t^{\ast}_{\beta}}$)，并进行t假设检验。
+*  对回归方程的进行样本外均值预测`r var_math$forecast_exp`
+*  对回归方程的进行样本外个值预测`r var_math$forecast_ind`
+
+\newpage
+
+## 实验背景——玫瑰的需求
+
+**玫瑰的需求**：表\@ref(tab:rose-demand)给出美国底特律市区对玫瑰的季度需求数据。
+
+```{r rose-demand,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+library("knitr")
+table_demo<-readxl::read_xlsx(path = "data/lab4-rose-demand-origin.xlsx",range="A12:F28")
+table_lab<-read.csv("data/lab4-rose-demand-lab.csv",header = T,sep=",")
+n_row<-c(1:dim(table_lab[1]))
+n_col<-c(1:(dim(table_demo)[2]+5))
+kable(table_demo,caption = paste0("玫瑰的需求","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-show)：
+
+```{r label-show,message=F,echo=FALSE,results='asis'}
+library("knitr")
+table_demo<-readxl::read_xlsx(path = "data/lab4-rose-demand-origin.xlsx",range="A12:F28")
+label<-c("年份.季度","玫瑰销售量(打)","玫瑰批发价格($/打)","石竹的平均批发价格($/打)","家庭可支配收入($/周)","时间趋势")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+\  
+
+
+请考虑如下两个需求函数：
+
+\begin{equation}
+Y_t=\hat{\alpha}_1+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+
+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+e_{1t}
+(\#eq:model1)
+\end{equation}
+
+\begin{equation}
+ln(Y_t)=\hat{\beta}_1+\hat{\beta}_2ln(X_{2t})+\hat{\beta}_3ln(X_{3t})+\hat{\beta}_4ln(X_{4t})+\hat{\beta}_5X_{5t}+e_{2t}
+(\#eq:model2)
+\end{equation}
+
+
+定制化的公式效果函数：
+```{r chunk2,echo=FALSE, results="asis"}
+solution<-function(mathname){
+  cat(
+    paste0(
+        list(
+    "\\begin{equation*}",
+    "ln(Y_t)=\\hat{\\beta}_1+\\hat{\\beta}_2ln(X_{2t})+\\hat{\\beta}_3ln(X_{3t})\\hat{\\beta}_4ln(X_{4t})+\\hat{\\beta}_5X_{5t}+e_{2t}",
+    paste0('(\\#eq:',mathname,')'),
+    "\\end{equation*}"
+    )), sep="\n")  
+}
+```
+
+调用效果函数： 
+
+```{r chunk3,echo=FALSE,results="asis"}
+solution("mathtext1")
+```
+
+
+调用chunk模型\@ref(eq:mmm)
+```{r chunk22,echo=FALSE, results="asis"}
+  cat(
+    paste0(
+        list(
+    "\\begin{equation}",
+    "ln(Y_t)=\\hat{\\beta}_1+\\hat{\\beta}_2ln(X_{2t})+\\hat{\\beta}_3ln(X_{3t})\\hat{\\beta}_4ln(X_{4t})+\\hat{\\beta}_5X_{5t}+e_{2t}",
+    paste0('(\\#eq:',"mmm",')'),
+    "\\end{equation}"
+    )), sep="\n")  
+
+```
+
+chunk调用结果如下:
+```{r,ref.label="chunk22",echo=FALSE, results="asis"}
+
+```
+
+转换函数如下
+```{r matrix2latex,echo=FALSE}
+m2l <- function(matr) {
+    printmrow <- function(x) {
+        ret <- paste(paste(x,collapse = " & "),"\\\\")
+        sprintf(ret)
+    }
+    out <- apply(matr,1,printmrow)
+    out2 <- paste("\\begin{bmatrix}",paste(out,collapse=' '),"\\end{bmatrix}")
+    return(out2)
+}
+```
+
+
+
+
+
+请回答如下问题:
+
+a.  关于线性模型\@ref(eq:mmm)，运用菜单操作，得到回归分析报告。  
+b.  关于线性模型\@ref(eq:model1)，在Eviews中运用矩阵方法，计算如下步骤：
+    1.    计算直线回归方程的回归系数向量($\mathbf{\hat{\beta}}$)，并写出样本回归模型（$SRM_2$）。  
+    1.    计算回归误差方差($\hat{\sigma}^2$)和回归误差标准差($\hat{\sigma}$)。  
+    1.    计算回归系数的样本方差协方差矩阵($\widehat{var}\_\widehat{cov}(\mathbf{\hat{\beta}})$)。  
+    1.    得出回归系数的样本标准差向量($\mathbf{S_{\hat{\beta}}}$)。  
+    1.    进行平方和分解，计算$TSS$、$ESS$和$RSS$。  
+    1.    计算判定系数$R^2$，调整判定系数($\hat{R}^2$)。  
+    1.    计算样本t统计量($\mathbf{t^{\ast}_{\beta}}$)，并进行t假设检验。  
+    1.    对回归方程的整体显著性进行F假设检验。  
+    1.    对回归方程的进行样本外均值预测`r var_math$forecast_exp`。  
+    1.    对回归方程的进行样本外个值预测`r var_math$forecast_ind`。  
+c.  关于对数线性模型\@ref(eq:model2)，运用菜单操作，得到回归分析报告。  
+d.  关于对数线性模型\@ref(eq:model2)，在Eviews中运用矩阵方法，计算如下步骤：
+    1.    计算直线回归方程的回归系数向量($\mathbf{\hat{\beta}}$)，并写出样本回归模型（$SRM_2$）  
+    1.    计算回归误差方差($\hat{\sigma}^2$)和回归误差标准差($\hat{\sigma}$)。  
+    1.    计算回归系数的样本方差协方差矩阵($\widehat{var}\_\widehat{cov}(\mathbf{\hat{\beta}})$)。  
+    1.    得出回归系数的样本标准差向量($\mathbf{S_{\hat{\beta}}}$)。  
+    1.    进行平方和分解，计算$TSS$、$ESS$和$RSS$。  
+    1.    计算判定系数$R^2$，调整判定系数($\hat{R}^2$)。   
+    1.    计算样本t统计量($\mathbf{t^{\ast}_{\beta}}$)，并进行t假设检验。  
+    1.    对回归方程的整体显著性进行F假设检验。  
+    1.    对回归方程的进行样本外均值预测`r var_math$forecast_exp`。  
+    1.    对回归方程的进行样本外个值预测`r var_math$forecast_ind`。  
+
+e.  根据对数模型特征，可知$\hat{\beta_2}$、$\hat{\beta_3}$和$\hat{\beta_4}$分别为玫瑰需求的自价格弹性，交叉价格弹性和收入弹性。 它们的先验符号是什么?你的结果同先验预期相符吗?  
+f.    根据你的分析，你会选择哪个模型(如果可选)? 为什么?
+    
+g.  仅考虑对数设定形式模型\@ref(eq:model2) ：
+    1.    所估计的需求自价格弹性 (即对玫瑰价格的弹性)是什么?  
+    2.    它是统计显著的吗?    
+    3.    如果是，它是否在统计上异于1?（此题为选作）  
+    4.    理论上，你对$\hat{\beta_3}$和$\hat{\beta_4}$的预期符号是什么?eviews结果和这些预期相符吗?  
+    5.    如果$\hat{\beta_3}$和$\hat{\beta_4}$的系数在统计意义上不显著，可能是什么原因?  
+    
+\  
+【本次实验题目完毕啦！！】
+
+\newpage
+
+# 主要实验步骤——以对数模型$M_2$为例\@ref(eq:model2) 
+
+##  Eviews变量命名设计
+
+\  
+
+```{r,math-name,message=F,echo=FALSE,results='asis'}
+knitr::kable(
+  subset(math_matrix,select = c("name_chn","cat_eng","math","name_eviews")), booktabs = TRUE,
+  caption = '计算对象、表达式及Eviews命名')
+```
+    
+
+
+
+##  导入数据并进行预处理
+
+*  目标：
+*  思路：
+*  新建Eviews工作文件（workfile）
+    *    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y
+    *    Eviews菜单操作：
+         a. 依次操作：file——》new——》workfile
+         b. 进行workfile create引导设置：
+             + workfile structure type: `unstructured/undatede`
+             + data range：`r n`
+             + workfile names(optional):
+                 - WF: `rose demand`
+                 - Page: `model2`  （**强烈建议命名model2！**）
+    *    注意：本次实验涉及到两个模型的比较——经典模型\@ref(eq:model1) 和对数模型\@ref(eq:model2)。为避免两个模型Eviews变量命名的冲突，请务必注意分别在两个Page里分别完成两个模型的数据分析！  
+    
+*  导入数据
+    *  提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y数据（X数据所有同学都一样）  
+    *  （方法1）菜单操作（Excel和Eviews）：  
+        a.    Excel找到数据。Excel表格中仅保留自己需要的数据（`r names(table_demo)`）
+        b.    Excel处理变量。加入一个新变量（建议命名为`cst`），并给该变量的数据全部设置为1。
+        c.    Eviews导入数据。File——》Import——》Import From File：`d:/econometrics/data/lab4-rose-demand-lab.csv`
+    *  （方法2）命令操作（Eviews）：尤其注意常数序列`cst`的命令生成过程。  
+        a.    Eviews命令窗口输入并运行代码：`series cst=1`
+        b.    Eviews命令窗口输入并运行代码：`series ln_x2=log(x2)` 
+        c.    Eviews命令窗口输入并运行代码：`series ln_x3=log(x3)` 
+        d.    Eviews命令窗口输入并运行代码：`series ln_x4=log(x4)`
+    *  说明：构造Eviews对象`cst`，是为了进一步构造矩阵`r cat(var_math$m_x,sep='\n')`。在有截距模型中，矩阵`r var_math$m_x`的第一列元素应全部设置为1。
+    
+    ```{r handle-data,message=F,echo=FALSE,fig.cap="Excel数据与变量预处理"}
+include_graphics(path = "picture/lab4-matrix/handle-data.png")
+```
+    
+* 构造组（group）对象`r var_name$x_group`
+    + 提示：把因变量`X`序列（series）和常数`cst`序列（series）对象一起转换成矩阵（matrix）对象
+    + 得到序列组`r var_math$x_group`
+        - 命名：建议将样本数据序列组的Eviews对象命名为`r var_name$x_group`
+        - 菜单：依次选择( `cst ln_x2 ln_x3 ln_x4 x5`)--->open as group --->name（建议命名为`r var_name$x`）
+  
+*  得到矩阵`r var_math$m_x`
+    + 命名：建议将样本数据矩阵`r var_math$m_x`的Eviews对象命名为`r var_name$m_x`
+    + 命令：`r paste0("matrix ",var_name$m_x,"=",var_name$x)`
+
+
+##  计算直线回归方程的回归系数向量(`r var_math$m_b_hat`)，并写出样本回归模型（$SRM_2$）。
+
+*  目标：根据理论的矩阵公式，计算得到直线回归方程的回归系数向量(`r var_math$m_b_hat`)
+*  思路：
+
+*  构造矩阵`r var_math$m_y`
+    + 提示：把因变量`Y`序列(series)对象转化成矩阵对象
+    + 命名：建议将样本数据矩阵`r var_math$m_y`的Eviews对象命名为`r var_name$y`
+    +命令：`r paste0("matrix ",var_name$y,"=",var_lab$Q)`
+
+* 构造矩阵`r var_math$m_x`
+    + 提示：把因变量`X`序列(series)对象转化成矩阵对象
+    + 得到序列组`r var_math$x_group`
+        a. 命名：建议将样本数据序列组`r var_math$x_group`的Eviews对象命名为`r var_name$x_group`
+        b. 菜单：依次选择( `cst ln_x2 ln_x3 ln_x4 x5`)--->open as group --->name（建议命名为`r var_name$x`）
+    + 得到矩阵`r var_math$m_x`：
+        a. 命名：建议将样本数据矩阵`r var_math$m_x`的Eviews对象命名为`r var_name$m_x`
+        b. 命令：`r paste0("matrix ",var_name$m_x,"=",var_name$x)`
+
+*  利用矩阵公式计算回归系数(`r var_math$m_b_hat`)
+    + 得到重要矩阵`r var_math$m_xtx`
+        a. 命名：建议将重要矩阵`r var_math$m_xtx`的Eviews对象命名为`r var_name$m_xtx`
+        b. 命令：`r paste0("matrix ",var_name$m_xtx,"=@transpose(",var_name$m_x,")*",var_name$m_x)`
+            
+    *  得到重要矩阵`r var_math$m_xtxi`
+        a. 命名：建议将重要矩阵`r var_math$m_xtxi`的Eviews对象命名为`r var_name$m_xtxi`
+        a. 命令：	`r paste0("matrix ",var_name$m_xtxi,"=@inverse(",var_name$m_xtx,")")`
+            
+    *  得到重要矩阵`r var_math$m_xty`（建议命名为`r var_name$m_xty`）
+        a. 命名：建议将重要矩阵`r var_math$m_xty`的Eviews对象命名为`r var_name$m_xty`
+        
+        a. 命令：	`r paste0("matrix ",var_name$m_xty,"=@transpose(",var_name$m_x,")*",var_name$m_y)`
+            
+    *  得到回归系数矩阵`r var_math$m_b_hat`
+        a. 提示：回归系数矩阵`r var_math$m_b_hat`的理论计算公式为
+$$\mathbf{\hat{\beta}}=\mathbf{{(X'X)}^{-1}X'y}$$
+        b. 命名：建议将回归系数矩阵`r var_math$m_b_hat`的Eviews对象命名为`r var_name$m_b_hat`
+        
+        b. 命令：`r paste0("matrix ",var_name$m_b_hat,"=",var_name$m_xtxi,"*",var_name$m_xty)`
+
+
+##  计算回归误差方差(`r var_math$sigma2_hat`)和回归误差标准差(`r var_math$sigma_hat`)
+
+*  目标：根据理论的矩阵公式，回归误差方差(`r var_math$sigma2_hat`)和回归误差标准差(`r var_math$sigma_hat`)
+*  思路：
+*  提示：回归误差方差(`r var_math$sigma2_hat`)和回归误差标准差(`r var_math$sigma_hat`)的理论计算公式分别为：
+
+$$\hat{\sigma}^2=\frac{\sum{e_i^2}}{n-k}=\frac{\mathbf{y'y-\hat{\beta}'X'y}}{n-k}$$
+$$\hat{\sigma}=\sqrt{\frac{\sum{e_i^2}}{n-k}}=\sqrt{\frac{\mathbf{yy'-\hat{\beta}'X'y}}{n-k}}$$
+  
+*  命名：建议将回归误差方差的Eviews对象命名为`r var_name$sigma2_hat`，将回归误差标准差的Eviews对象命名为`r var_name$sigma_hat`。
+*  命令：
+
+    *   回归误差方差`r var_math$sigma2_hat`: `r paste0('scalar ',var_name$sigma2_hat,'=',1,'/(',n,'-',k,')*(@transpose(',var_name$m_y,')*',var_name$m_y,'-@transpose(',var_name$m_b_hat,')*',var_name$m_xty,')')`
+    *   回归误差标准差 `r var_math$sigma_hat`: `r paste0('scalar',var_name$sigma_hat,'=','@sqr(',var_name$sigma2_hat,')')`
+      
+*  注意：与eviews报告比对是否正确（注：要开根号才能比较！）
+        
+##  计算回归系数的样本方差协方差矩阵(`r var_math$m_s2_varcov_beta_hat`)
+
+*  目标：根据理论的矩阵公式，计算回归系数的样本方差协方差矩阵(`r var_math$m_s2_varcov_beta_hat`)
+*  思路：
+*  提示：回归系数的样本方差协方差矩阵阵(`r var_math$m_s2_varcov_beta_hat`)的理论计算公式为：
+
+$$\widehat{var}\_\widehat{cov}(\mathbf{\hat{\beta}})=\hat{\sigma}^2\mathbf{(X'X)^{-1}}$$
+    
+*  命名：建议将样本方差协方差矩阵的Eviews对象命名为`r var_name$m_s2_varcov_beta_hat`
+*  命令：`r paste0('matrix ',var_name$m_s2_varcov_beta_hat,'=',var_name$sigma2_hat,'*',var_name$m_xtxi)`
+*  注意：与eviews报告比对是否正确（注：要开根号才能比较！）
+
+##  得出回归系数的样本标准差向量(`r var_math$m_s_b_hat`)
+
+
+*  目标：根据理论的矩阵公式，得出回归系数的样本标准差向量(`r var_math$m_s_b_hat`)
+*  思路：
+*  提取矩阵主对角元素，得到方差向量`r var_math$m_s2_b_hat`
+
+    *  提示：该矩阵维度为`r paste0(k,'*',k)`
+    *  命名：建议将方差向量的Eviews对象命名为`r var_name$m_s2_b_hat`
+    *  命令：`r paste0('matrix ',var_name$m_s2_b_hat,'=@getmaindiagonal(',var_name$m_s2_varcov_beta_hat,')')`
+    *  注意：Eviews命令`@getmaindiagonal()`的作用是提取矩阵的对角线元素
+
+*  矩阵元素开根号，得到标准差向量`r var_math$m_s_b_hat`
+
+    *  提示：标准差向量`r var_math$m_s_b_hat`的矩阵维度为`r paste0(k,'*',1)`
+    *  命名：建议将标准差向量的Eviews对象命名为`r var_name$m_s_b_hat`
+    *  命令：`r paste0('matrix ',var_name$m_s_b_hat,'=@sqr(',var_name$m_s2_b_hat,')')`
+    *  注意：与eviews报告比对是否正确
+
+##  进行平方和分解，计算`r var_math$tss`、`r var_math$ess`和`r var_math$rss`
+
+*  目标：根据理论的矩阵公式，进行平方和分解，计算`r var_math$tss`、`r var_math$ess`和`r var_math$rss`
+*  思路：
+*  计算均值修正值`r var_math$mean_adj`
+    *  提示：均值修正值的理论公式为
+    
+    $$n\bar{Y}^2$$
+    *  命名：建议将均值修正值的Eviews对象命名为`r var_name$mean_adj`
+    
+    *  命令：`r paste0('scalar ',var_name$mean_adj,'=',n,'*(@mean(',var_name$y,'))^2')`
+
+*  计算总平方和`r var_math$tss`
+    *  提示：总平方和`r var_math$tss`的理论计算公式为
+    
+    $$TSS=\mathbf{y'y}-n\bar{Y}^2$$
+    *  命名：建议将总平方和的Eviews对象命名为`r var_name$tss`
+    
+    *  命令：`r paste0('scalar ',var_name$tss,'=@transpose(',var_name$m_y,')*',var_name$m_y,'-',var_name$mean_adj)`
+    
+*  计算残差平方和`r var_math$rss`
+    *  提示：残差平方和`r var_math$rss`的理论计算公式为：
+    
+    $$RSS=\mathbf{e'e}=\mathbf{y'y-\hat{\beta}'X'y}$$
+    *  命名：建议将残差平方和的Eviews对象命名为`r var_name$rss`
+    
+    *  命令：`r paste0('scalar ',var_name$rss,'=@transpose(',var_name$m_y,')*',var_name$m_y,'-@transpose(',var_name$m_b_hat,')*',var_name$m_xty)`
+    *  注意：与eviews报告比对是否正确
+    
+*  计算回归平方和`r var_math$ess`
+    *  提示：回归平方和`r var_math$ess`的理论计算公式为：
+    
+    $$ESS=\mathbf{e'e}=\mathbf{\hat{\beta}'X'y}-n\bar{Y}^2$$
+    *  命名：建议将回归平方和的Eviews对象命名为`r var_name$ess`
+    
+    *  命令：`r paste0('scalar ',var_name$ess,'=@transpose(',var_name$m_b_hat,')*',var_name$m_xty,'-',var_name$mean_adj)`
+
+##  计算判定系数`r var_math$r2`和调整判定系数(`r var_math$r2_adj`)
+
+*  目标：根据理论的矩阵公式，计算判定系数`r var_math$r2`和调整判定系数(`r var_math$r2_adj`)
+*  思路：
+*  计算判定系数`r var_math$r2`
+    *  提示：理论计算公式为：
+    
+    $$R^2=\frac{ESS}{TSS}=\frac{\mathbf{\hat{\beta}'X'y}-n\bar{Y}^2}{\mathbf{y'y}-n\bar{Y}^2}$$
+    *  命名：建议将判定系数的Eviews对象命名为`r var_name$r2`
+    *  命令：`r paste0('scalar ',var_name$r2,'=',var_name$ess,'/',var_name$tss)`
+    *  注意：与eviews报告比对是否正确
+      
+*  计算调整判定系数(`r var_math$r2_adj`)
+    *  提示：判定系数`r var_math$r2_adj`的理论计算公式为
+    
+    $$\bar{R}^2=1-\frac{RSS/{f_{RSS}}}{TSS/{f_{TSS}}}=1-\frac{\mathbf{y'y-\hat{\beta}X'y}/{n-k}}{{(\mathbf{y'y}-n\bar{Y}^2)}/{n-1}}$$
+    *  命名：建议将调整判定系数的Eviews对象命名为`r var_name$r2_adj`
+    *  命令：`r paste0('scalar ',var_name$r2_adj,'=1-(',var_name$rss,'/',df_rss,')/(',var_name$tss,'/',df_tss,')')`
+    *  注意：与eviews报告比对是否正确
+
+##  计算得到样本t统计量(`r var_math$m_t_str_beta_hat`)
+
+*  目标：根据理论的矩阵公式，计算样本t统计量(`r var_math$m_t_str_beta_hat`)，并进行t假设检验
+*  思路：
+*  提示：样本t统计量`r var_math$m_t_str_beta_hat`的理论计算公式为
+
+$$\mathbf{t^{\ast}_{\beta}=\frac{\hat{\beta}}{S_{\hat{\beta}}}}$$
+
+*  命名：建议将样本t统计量的Eviews对象命名为`r var_name$m_t_str_beta_hat`    
+*  命令：`r paste0('matrix ',var_name$m_t_str_beta_hat,'=@ediv(',var_name$m_b_hat,',',var_name$m_s_beta_hat,')')` 
+*  注意：与Eviews报告比对是否正确。Eviews命令`@ediv()`的作用是将矩阵对应元素进行相除。
+
+##  计算给定$\alpha=0.05$水平下的查表的理论t值(`r var_math$t_value`)，并进行t假设检验
+
+*  目标：根据理论的矩阵公式，计算查表的理论t值(`r var_math$t_value`)，并进行t假设检验
+*  思路：
+*  提示：查表的理论t值(`r var_math$t_value`)的理论计算公式为：
+
+$$t_{1-\alpha/2}(n-k)=t_{0.975}(11)$$
+
+*  命名：建议将查表理论t值的Eviews对象命名为`r var_name$t_value` 
+*  命令：`r paste0('scalar ',var_name$t_value,'=@qtdist(0.975,',df_rss,')')` 
+
+
+##  对回归方程的整体显著性进行F假设检验
+
+*  目标：根据理论的矩阵公式，计算样本F统计量，并进行模型整体显著性检验
+*  思路：
+*  提示：样本F统计量`r var_math$f_str`的理论计算公式为：
+
+$$F^{\ast}=\frac{ESS/{f_{ESS}}}{RSS/{f_{RSS}}}=\frac{MSS_{ESS}}{MSS_{RSS}}=\frac{(\mathbf{\hat{\beta}X'y}-n\bar{Y}^2)/{k-1}}{{(\mathbf{y'y-\hat{\beta}'X'y})}/{n-k}}$$
+
+*  命名：建议将样本F统计量的Eviews对象命名为`r var_name$f_str`     
+*  命令：`r paste0('scalar ',var_name$f_str,'=(',var_name$ess,'/',df_ess,')/(',var_name$rss,'/',df_rss,')')`
+*  注意：与eviews报告比对是否正确。
+
+##  计算给定$\alpha=0.05$水平下的查表的理论F值(`r var_math$f_value`)，并进行F假设检验
+
+*  目标：根据理论的矩阵公式，计算查表的理论F值(`r var_math$f_value`)，并进行F假设检验
+*  思路：
+*  提示：查表的理论F值(`r var_math$f_value`)的理论计算公式为：
+
+$$F_{1-\alpha}(k-1,n-k)=F_{0.95}(4,11)$$
+
+*  命名：建议将查表理论F值的Eviews对象命名为`r var_name$f_value` 
+*  命令：`r paste0('scalar ',var_name$t_value,'=@qfdist(0.95,',df_ess,',',df_rss,')')` 
+
+##  对回归方程的进行样本外均值预测`r var_math$forecast_exp`
+
+*  目标：根据理论的矩阵公式，计算样本外的均值预测(`r var_math$forecast_exp`)
+*  思路：
+
+*  构造`r var_math$m_x0`矩阵
+            
+```{r x0-data,echo=F}
+mx0<-matrix(c(1,20,4,4,200),nrow=1,byrow = T)
+```
+    *  提示：已知给定的样本外数据为$(X_{20}=`r mx0[1,2]`,X_{30}=`r mx0[1,3]`,X_{40}=`r mx0[1,4]`,X_{50}=`r mx0[1,5]`)$。此时，`r var_math$m_x0`矩阵的理论构造表达式为：
+
+    $$\mathbf{X_0}= \begin{bmatrix}1 & X_{20} & X_{30} & X_{40} & X_{50}\\\end{bmatrix}$$
+    *  命名：建议将样本外预测矩阵`r var_math$m_x0`的Eviews对象命名为`r var_name$m_x0`
+    *  命令：
+        a. 产生空矩阵：`r paste0('matrix(',dim(mx0)[1],',',dim(mx0)[2],')',' ',var_name$m_x0)`
+        a. 给矩阵赋值：`r paste0('matrix.fill(b=r) ',paste0(mx0[1,],sep="",collapse = ","))`
+    *  注意：与eviews报告比对是否正确。
+
+
+*  计算样本外预测值(`r var_math$y0h`)
+    *  提示：样本外预测值(`r var_math$y0h`)的计算公式为：
+
+    $$\mathbf{\hat{Y_0}=X_0\hat{\beta}}$$  
+    *  命名：建议将样本外预测值`r var_math$y0h`的Eviews对象命名为`r var_name$forecast_exp`
+    
+    *  命令：`r paste0('matrix ',var_name$y0h,'=',var_name$m_x0,'*',var_name$m_b_hat)`
+    *  注意：与eviews报告比对是否正确。
+    
+*  计算样本外预测值(`r var_math$y0h`)的样本标准差`r var_math$s_y0h`
+    *  提示：样本外预测值`r var_math$y0h`的样本标准差`r var_math$s_y0h`的理论计算公式为：
+
+    $$\mathbf{S_{\hat{Y_0}}= \sqrt{\hat{\sigma}^2X_0(X'X)^{-1}X_0'}}$$   
+    *  命名：建议将样本标准差`r var_math$s_y0h`的Eviews对象命名为`r var_name$s_y0h` 
+    
+    *  命令：`r paste0('scalar ',var_name$s_y0h,'=@sqr(',var_name$sigma2_hat,'*',var_name$m_x0,'*',var_name$m_xtxi,'*@transpose(',var_name$m_x0,')',')')`
+    *  注意：与eviews报告比对是否正确。
+    
+*  计算均值预测的`r var_math$forecast_exp`置信区间
+    *  提示：均值预测的`r var_math$forecast_exp`置信区间的理论计算公式为：
+
+    $$\mathbf{\hat{Y_0}-t_{1-\alpha/2}(n-k)\cdot S_{\hat{Y_0}}\leq {E(Y|X=X_0)}\leq \hat{Y_0}+t_{1-\alpha/2}(n-k)\cdot S_{\hat{Y_0}}}$$
+    *  命名：建议将均值预测`r var_math$forecast_exp`置信区间左界的Eviews对象命名为`r var_name$y_exp_lft`；右界的Eviews对象命名为`r var_name$y_exp_rht`
+    *  命令：
+        a.  左界：`r paste0('scalar ',var_name$y_exp_lft,'=',var_name$y0h,'-',var_name$t_value,'*',var_name$s_y0h)`
+        a.  右界：`r paste0('scalar ',var_name$y_exp_rht,'=',var_name$y0h,'+',var_name$t_value,'*',var_name$s_y0h)`
+    *  注意：与eviews报告比对是否正确。
+    
+##  对回归方程的进行样本外个值预测`r var_math$forecast_ind`
+
+*  计算随机变量${(\hat{Y}_0-Y_0)}$的样本标准差`r var_math$s_y0h_mns_y0`
+    *  提示：随机变量${(\hat{Y}_0-Y_0)}$的样本标准`r var_math$s_y0h_mns_y0`的理论计算公式为：
+
+    $$\mathbf{S_{(\hat{Y}_0-Y_0)}=\sqrt{\hat{\sigma}^2(1+X_0(X'X)^{-1}X_0')}}$$
+    *  命名：建议将随机变量${(\hat{Y}_0-Y_0)}$的样本标准差`r var_math$s_y0h_mns_y0`的Eviews对象命名为`r var_name$s_y0h_mns_y0`
+    
+    *  命令：`r paste0('scalar ',var_name$s_y0h_mns_y0,'=@sqr(',var_name$sigma2_hat,'*(1+',var_name$m_x0,'*',var_name$m_xtxi,'*@transpose(',var_name$m_x0,')','))')`
+    *  注意：与eviews报告比对是否正确。
+   
+*  计算个值预测的`r var_math$forecast_ind`置信区间
+    *  提示：均值预测的`r var_math$forecast_ind`置信区间的理论计算公式为：
+
+    $$\mathbf{\hat{Y_0}-t_{1-\alpha/2}(n-k)\cdot S_{(\hat{Y_0}-Y_0)}\leq{(Y_0|X=X_0)}\leq \hat{Y_0}+t_{1-\alpha/2}(n-k)\cdot S_{(\hat{Y_0}-Y_0)}} $$  
+    *  命名：建议将均值预测`r var_math$forecast_ind`置信区间左界的Eviews对象命名为`r var_name$y_ind_lft`；右界的Eviews对象命名为`r var_name$y_ind_rht`
+    *  命令：
+    
+        a.    左界：`r paste0('scalar ',var_name$y_ind_lft,'=',var_name$y0h,'-',var_name$t_value,'*',var_name$s_y0h_mns_y0)`
+        b.    右界：`r paste0('scalar ',var_name$y_ind_rht,'=',var_name$y0h,'+',var_name$t_value,'*',var_name$s_y0h_mns_y0)`
+    *  注意：与eviews报告比对是否正确。

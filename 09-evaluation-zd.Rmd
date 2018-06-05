@@ -1,0 +1,578 @@
+---
+title: "2017-2018学年第二学期期中教学检查"
+author: "周丹"
+date: "2018/5/27"
+output: 
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: no
+    toc_depth: 4
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: yes
+    toc_depth: 5
+    number_sections: no
+    keep_tex: true
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+
+\newpage
+
+```{r global_options7, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(fig.align='center') # Places figures on their own pages
+library('bookdown')
+library('knitr')
+library('xlsx')
+#install.packages('tidyr')
+#install.packages('plyr')
+library('tidyr')
+library('plyr')
+library('ggplot2')
+options(digits=2,scipen=999)
+```
+
+```{r data-handle,message=FALSE,echo=FALSE,error=FALSE}
+
+list_college<-c('农学院','植保学院','园艺学院','动科学院','动医学院','林学院','风景艺术学院','资环学院','水建学院','机电学院','信息学院','食品学院','葡萄酒学院','生命学院','理学院','化药学院','经管学院','人文学院','外语系','创新学院','马克思学院','体育部')
+index_college<-1:22
+
+table<-readxl::read_xlsx(path ="mid-evalation-college.xlsx",sheet='table1',range="A1:AR23")
+
+college_id<-paste(paste0(table$colleage,'=',table$id),sep='',collapse =';' )
+
+table$Aa_sum<-rowSums(subset(table,select=Aa1:Aa4)) # num_enroll :all teachers
+table$Aa_sum_h<-rowSums(subset(table,select=Aa1:Aa2)) # num_enroll :professor and vice pro
+table$Aa_ratio_h<-100*table$Aa_sum_h/table$Aa_sum #num_enroll : ratio
+
+table$Ab_sum<-rowSums(subset(table,select=Ab1:Ab4)) # num_train:all teachers
+table$Ab_sum_h<-rowSums(subset(table,select=Ab1:Ab2)) # num_train:professor and vice pro
+table$Ab_ratio_h<-100*table$Ab_sum_h/table$Ab_sum #num_train:ratio
+
+table$Ac_sum<-rowSums(subset(table,select=Ac1:Ac4)) # num_man:all teachers
+table$Ac_sum_h<-rowSums(subset(table,select=Ac1:Ac2)) # num_man:professor and vice pro
+table$Ac_ratio_h<-100*table$Ac_sum_h/table$Ac_sum #num_man:ratio
+table$Ac_ratio_h2<-100*table$Ac_sum_h/table$Aa_sum #num_man:ratio of professor and vice pro to all enroll teachers
+table$Ac_ratio_pro<-100*table$Ac1/table$Aa1 # pro in course vs pro enroll
+table$Ac_ratio_vice<-100*table$Ac2/table$Aa2 # vice pro in course vs vice pro enroll
+
+table$Ad1_sum<-rowSums(subset(table,select=c(Ad1,Ad3,Ad5,Ad7))) # num_course:all teachers
+table$Ad1_sum_h<-rowSums(subset(table,select=c(Ad1,Ad3))) # num_course:professor and vice pro
+table$Ad1_ratio_h<-100*table$Ad1_sum_h/table$Ad1_sum #num_course:ratio
+
+table$Ad2_sum<-rowSums(subset(table,select=c(Ad2,Ad4,Ad6,Ad8))) # num_class:all teachers
+table$Ad2_sum_h<-rowSums(subset(table,select=c(Ad2,Ad4))) # num_class:professor and vice pro
+table$Ad2_ratio_h<-100*table$Ad2_sum_h/table$Ad2_sum #num_class:ratio
+
+table$course_per_pro<-table$Ad1/table$Ac1 #course per professor
+table$course_per_vicpro<-table$Ad3/table$Ac2 #course per vice-professor
+table$class_per_pro<-table$Ad2/table$Ac1 #class per professor
+table$class_per_vicpro<-table$Ad4/table$Ac2 #class per vice-professor
+
+table$course_ratio_leader<-100*table$B2/table$Ac_sum #class per vice-professor
+
+# convert NaN to 0
+is.nan.data.frame <- function(x)
+do.call(cbind, lapply(x, is.nan))
+table[is.nan(table)] <- 0
+
+college<-mapvalues(table$id,from=index_college,to = list_college,warn_missing = F)
+table[,'colleage']<-college
+```
+
+
+
+```{r wide2long,message=F,error=F,echo=F}
+table_Aa<-subset(table,select = c(id,colleage,Aa1,Aa2,Aa3,Aa4))
+table_Ab<-subset(table,select = c(id,colleage,Ab1,Ab2,Ab3,Ab4))
+table_Ac<-subset(table,select = c(id,colleage,Ac1,Ac2,Ac3,Ac4))
+table_Ad1<-subset(table,select = c(id,colleage,Ad1,Ad3,Ad5,Ad7))
+table_Ad2<-subset(table,select = c(id,colleage,Ad2,Ad4,Ad6,Ad8))
+
+table_Aa_long<-gather(table_Aa,key=pos_enroll,value=num_enroll,Aa1:Aa4,factor_key = T)
+table_Ab_long<-gather(table_Ab,key=pos_train,value=num_train,Ab1:Ab4,factor_key = T)
+table_Ac_long<-gather(table_Ac,key=pos_man,value=num_man,Ac1:Ac4,factor_key = T)
+table_Ad1_long<-gather(table_Ad1,key=pos_course,value=num_course,c(Ad1,Ad3,Ad5,Ad7),factor_key = T)
+table_Ad2_long<-gather(table_Ad2,key=pos_class,value=numb_class,c(Ad2,Ad4,Ad6,Ad8),factor_key = T)
+
+table_long<-cbind(table_Aa_long,table_Ab_long,table_Ac_long,table_Ad1_long,table_Ad2_long)
+
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Aa1", "教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ab1", "教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ac1", "教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad1", "教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad2", "教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Aa2", "副教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ab2", "副教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ac2", "副教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad3", "副教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad4", "副教授", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Aa3", "讲师", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ab3", "讲师", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ac3", "讲师", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad5", "讲师", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad6", "讲师", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Aa4", "助教", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ab4", "助教", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ac4", "助教", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad7", "助教", x)}))
+table_long <- data.frame(lapply(table_long, function(x) { gsub("Ad8", "助教", x)}))
+table_long<-subset(table_long,
+                   select = c(id,colleage,
+                              pos_enroll,num_enroll,num_train,num_man,num_course,numb_class))
+
+```
+
+
+# 教师上课情况统计
+
+统计表中有如下指标：
+
+* 在编教师数 在编教师数(高级) 在编教师数(高级占比)
+* 进修教师数 进修教师数(高级) 进修教师(高级占比)
+* 授课教师数 授课教师数(高级) 授课教师数(高级占比)
+* 授课门数 授课门数(高级) 授课门数(高级占比)
+* 授课班级数 授课班级数(高级) 授课班级数(高级占比)
+
+
+```{r teaching-data,message=F,echo=F,error=F,warning=F}
+label_chn1<-list(c('序号','学院',
+                   '在编教师数','在编教师数(高级)','在编教师数(高级占比)',
+                   '进修教师数', '进修教师数(高级)', '进修教师(高级占比)',
+                   '授课教师数', '授课教师数(高级)', '授课教师数(高级占比)',
+                   '授课门数', '授课门数(高级)', '授课门数(高级占比)',
+                   '授课班级数', '授课班级数(高级)','授课班级数(高级占比)',
+                   '外聘教师授课人数','外聘教师授课门数'))
+label_chn<-list(c('序号','学院',
+                  '在编教师中高级职称占比%','授课教师中高级职称占比%)',
+                  '高级职称中授课教师比率%',
+                  '教授中授课教师比率%','副教授中授课教师比率%',
+                  '授课课程(高级职称占比%)','授课班级(高级职称占比%)',
+                  '教授人均授课门数','副教授人均授课门数',
+                  '教授人均授课班级数','副教授人均授课班级数',
+                  '进修教师数',
+                  '外聘教师授课人数','外聘教师授课门数'))
+table_teach<-subset(table,select = c(id,colleage,
+                                     Aa_ratio_h,Ac_ratio_h,
+                                     Ac_ratio_h2,
+                                     Ac_ratio_pro,Ac_ratio_vice,
+                                     Ad1_ratio_h,Ad2_ratio_h,
+                                     course_per_pro,course_per_vicpro,
+                                     class_per_pro,class_per_vicpro,
+                                     Ab_sum,
+                                     Ae1,Ae2
+                                     ))
+
+
+dimnames(table_teach)[2]<-label_chn
+n<-dim(table_teach)[1]
+
+#names(table)
+```
+
+
+本学期对各学院教授、副教授讲授本科生课程情况进行了检查。2017-2018学年第二学期全校在编专任教师人数为`r sum(table$Aa_sum,na.rm=T)`,其中高级职称在编专任教师人数为`r sum(table$Aa_sum_h,na.rm=T)`,占比为`r mean(table$Aa_ratio_h,na.rm=T)`%。
+
+其中主讲本科生课程的教授人数为`r sum(table$Ac1,na.rm=T)`人，占全部在编专任教师的 `r 100*sum(table$Ac1,na.rm=T)/sum(table$Aa_sum,na.rm=T)`%，占在编教授中的`r 100*sum(table$Ac1,na.rm=T)/sum(table$Aa1,na.rm=T)`%；
+
+教授人均授课`r sum(table$Ad1,na.rm=T)/sum(table$Ac1,na.rm=T)` 门，  人均授课课`r sum(table$Ad2,na.rm=T)/sum(table$Ac1,na.rm=T)`个教学班。
+
+其中主讲本科生课程的副教授人数为`r sum(table$Ac2,na.rm=T)`人，占全部在编专任教师的 `r 100*sum(table$Ac2,na.rm=T)/sum(table$Aa_sum,na.rm=T)`%，占在编副教授中的`r 100*sum(table$Ac2,na.rm=T)/sum(table$Aa2,na.rm=T)`%；
+
+副教授人均授课`r sum(table$Ad3,na.rm=T)/sum(table$Ac2,na.rm=T)` 门，  人均授课课`r sum(table$Ad5,na.rm=T)/sum(table$Ac2,na.rm=T)`教学班。
+
+其中,主讲本科生课程的教授和副教授人数最多的学院是`r table$colleage[which.max(table$Ac_sum_h)]`   ，教授、副教授中主讲本科生课程最少的学院为`r table$colleage[which.min(table$Ac_sum_h)]`。
+
+本学期外聘教师`r sum(table$Ae1,na.rm=T)`人，共承担`r sum(table$Ae2,na.rm=T)`门本科生课程；参加培训进修、境内外交流的人数达`r sum(table$Ab_sum,na.rm=T)`人，交流的人数最多的学院为`r table$colleage[which.max(table$Ab_sum)]`。没有参加培训进修、境内外交流的学院是`r paste(table$colleage[which(table$Ab_sum==0)],collapse = '和')` 。
+
+## 教师上课情况统计1
+
+```{r teaching-stat1,message=FALSE,echo=FALSE,results='asis',error=FALSE,warning=F}
+# View(table_teach)
+kable(table_teach[,1:7],booktabs = TRUE,caption = paste0("教师上课情况统计1","(n=",n,")"),row.names = FALSE)
+#names(table_teach)
+``` 
+
+
+## 教师上课情况统计2
+
+```{r teaching-stat2,message=FALSE,echo=FALSE,results='asis',error=FALSE,warning=F}
+# View(table_teach)
+kable(table_teach[,c(1:2,8:13)],booktabs = TRUE,caption = paste0("教师上课情况统计2","(n=",n,")"),row.names = FALSE)
+#names(table_teach)
+``` 
+
+## 教师上课情况统计3
+
+```{r teaching-stat3,message=FALSE,echo=FALSE,results='asis',error=FALSE,warning=F}
+# View(table_teach)
+kable(table_teach[,c(1:2,14:16)],booktabs = TRUE,caption = paste0("教师上课情况统计3","(n=",n,")"),row.names = FALSE)
+#names(table_teach)
+``` 
+
+<!---
+其中各学院的专任教师人数分布图如下：
+
+```{r bar-enroll,message=F,echo=F,error=F,fig.cap="在编专任教师人数情况"}
+table_long<-replace(table_long, is.na(table_long), 0)
+p<-ggplot(data=table_long,aes(x=colleage,y=num_enroll,fill=pos_enroll))+geom_bar(stat = 'identity')
+P1<-p+ coord_flip()
+P1+labs(x='',y='人数',fill='职称')+geom_text(aes(label = num_enroll), position =     "stack")
+#names(table_long)
+
+```
+
+--->
+
+# 听课及领导重视情况
+
+```{r leader-data,message=F,echo=F,error=F,warning=F}
+label_chn<-list(c('序号','学院',
+                   '党政领导人数','党政领导听课次数','党政领导所听授课教师人数',
+                  '领导听课门次占课程总门次的比例%'))
+
+table_leader<-subset(table,select = c(id,colleage,
+                                     B1,B2,B3,course_ratio_leader))
+table_leader$college_new<-mapvalues(table_leader$id,from = index_college,to=list_college,warn_missing = F)
+table_leader<-subset(table_leader,select = c(id,college_new,
+                                     B1,B2,B3,course_ratio_leader))
+dimnames(table_leader)[2]<-label_chn
+n<-dim(table_leader)[1]
+
+# convert inf to zero
+is.infinite.data.frame <- function(x)
+do.call(cbind, lapply(x, is.infinite))
+table_leader[is.infinite(table_leader)] <- 0
+
+#names(table_leader)
+```
+
+```{r peer-data,message=FALSE,echo=FALSE,results='asis',error=FALSE,warning=F}
+peer<-readxl::read_xlsx(path = "mid-evalation-peer.xlsx",sheet='peer',range="A1:H992")
+
+# recode college to id
+id_college<-factor(peer$college)
+level_college<-levels(id_college)
+peer$id<-mapvalues(peer$college,from = list_college,to=index_college)
+
+# recode type to cat
+id_type<-factor(peer$type)
+level_type<-levels(id_type)
+peer$cat<-mapvalues(peer$type,from =level_type,to=1:length(level_type))
+
+# for table show
+listen_count<-with(peer,table(college,type))
+listen_count<-as.data.frame.matrix(listen_count)
+listen_count<-as.data.frame(listen_count)
+listen_count$college<-dimnames(listen_count)[[1]]
+listen_count$id<-mapvalues(listen_count$college,from = list_college,to=index_college)
+listen_count$id<-as.numeric(listen_count$id)
+row.names(listen_count)<-NULL
+listen_count<-listen_count[order(listen_count$id),]
+# use an external var to leader listening course!!
+listen_count[,2]<-table_leader[,4]
+listen_count<-subset(listen_count,select=c('id','college','学院教学督导听课','学院同行专家听课','学院领导听课'))
+# sum all listen type
+listen_count$listen_sum<-rowSums(listen_count[,3:5])
+
+
+dimnames(listen_count)[2]<-list(c('序号','学院','教学督导听课','同行专家听课','领导听课','听课总计'))
+row.names(listen_count)<-NULL
+n<-dim(listen_count)[1]
+
+# order the data by total num
+listen_count<-listen_count[order(listen_count[,6],decreasing=T),]
+listen_count_var<-listen_count
+dimnames(listen_count_var)[2]<-list(c('id','college','supervisor','peer','leader','tot'))
+
+# for bar-graph
+# listen_long<-count(peer,vars = c('college','type'))
+# listen_long$id<-mapvalues(listen_long$college,from = list_college,to=index_college)
+
+listen_long<-listen_count[,1:5]
+dimnames(listen_long)[2]<-list(c('id','college','supervisor','peer','leader'))
+# sorting stack bar chart key!!
+listen_long$college <- reorder(listen_long$college, rowSums(listen_long[3:5])) 
+# you can check: attributes(listen_long$college)
+listen_long<-gather(listen_long,type,freq,supervisor:leader,factor_key = T)
+
+```
+
+
+
+
+
+全校院系共有处级干部`r sum(table$B1,na.rm=T)`人，听课共计`r sum(table$B2,na.rm=T)`门次，人均听课`r sum(table$B2,na.rm=T)/sum(table$B1,na.rm=T)`门次,院系平均听课`r mean(table$B2,na.rm=T)`门次；
+
+学院教学督导听课共计`r sum(listen_count_var$supervisor,na.rm=T)`门次，院系平均听课`r mean(listen_count_var$supervisor,na.rm=T)`门次；
+
+学院同行专家听课共计`r sum(listen_count_var$peer,na.rm=T)`门次，院系平均听课`r mean(listen_count_var$peer,na.rm=T)`门次。
+
+学院（系）总平均听课门次为`r mean(listen_count_var$tot,na.rm=T)`门次，听课次数最多的为`r paste(listen_count_var[which.max(listen_count_var$tot),c('college','tot')],collapse = '')`  门次，其次为马克思主义学院（109门次），最少的为`r paste(listen_count_var[which.min(listen_count_var$tot),c('college','tot')],collapse = '')`门次。
+
+本学期共开教学工作会议111次，平均每学院5次会议。教学会议最多的学院为人文学院共13次，其次为信息学院和食品学院，均为10次。
+
+
+
+
+## 听课情况
+
+听课情况统计表如下
+
+```{r listen-stat,message=FALSE,echo=FALSE,results='asis',error=FALSE,warning=F}
+# View(table_teach)
+kable(listen_count,booktabs = TRUE,caption = paste0("听课情况统计","(n=",n,")"),row.names = FALSE)
+#names(table_teach)
+``` 
+
+其中，院系平均听课门次为`r mean(listen_count[,6])`门次。
+
+
+听课情况柱状图统计表如下
+
+```{r bar-listen,message=F,echo=F,error=F,fig.cap="听课情况"}
+p<-ggplot(data=listen_long,aes(x=college,y=freq,fill=type))+geom_bar(stat = 'identity')
+P1<-p+ coord_flip()
+P1+labs(x='',y='人次',fill='听课类型')+geom_text(aes(label = freq), size = 3, position =     "stack")
+#names(listen_long)
+# sorting stack bar chart: the key is levels(listen_long$college) 
+```
+
+其中：supervisor表示督导组听课，peer表示同行专家听课，leader表示领导听课
+
+
+## 领导听课情况
+
+
+领导重视教学情况统计见下表：
+
+```{r leader-stat,message=FALSE,echo=FALSE,results='asis',error=FALSE,warning=F}
+# View(table_teach)
+kable(table_leader,booktabs = TRUE,caption = paste0("领导重视教学情况统计","(n=",n,")"),row.names = FALSE)
+#names(table_teach)
+``` 
+
+领导重视教学情况柱状图如下：
+
+```{r bar-leader,message=FALSE,echo=FALSE,error=FALSE,fig.cap="党政领导所听授课教师人数"}
+table<-replace(table,is.na(table),0)
+p<-ggplot(data=table,aes(x=reorder(colleage,B2),y=B2))+geom_bar(stat = 'identity',fill='blue')
+P1<-p+ coord_flip()
+P1+labs(x='',y='人数')+geom_text(aes(label=B2),color='red')
+#names(table_long)
+```
+
+## 本科工作会议情况
+
+
+```{r bar-conference,message=FALSE,echo=FALSE,error=FALSE,fig.cap="各学院召开教学工作会议情况"}
+table<-replace(table,is.na(table),0)
+p<-ggplot(data=table,aes(x=reorder(colleage,B4),y=B4))+geom_bar(stat = 'identity',fill='green')
+P1<-p+ coord_flip()
+P1+labs(x='',y='次数')+geom_text(aes(label=B4),color='black')
+#names(table_long)
+```
+
+全校院系平均召开教学工作会议`r mean(table$B4)`次.
+
+
+
+
+
+# 课堂教学改革情况
+
+```{r revolution-data,message=F,echo=F,error=F,warning=F}
+
+table_rev<-subset(table,select = c(id,colleage,
+                                     dual,C6,
+                                    invert, C7,
+                                     eval,C8,
+                                     seminar,C9))
+
+# read data from excel sheet (table)
+table_case<-readxl::read_xlsx(path ="mid-evaluation-quanlity.xlsx",sheet='case',range="A1:B64")
+table_case<-count(table_case,vars = 'college')
+
+table_case$id<-as.numeric(mapvalues(table_case$college,from = list_college,to = index_college ))
+table_case<-table_case[order(table_case$id),]
+table_case<-subset(table_case,select=c(id,college,freq))
+
+# conbide two data
+
+table_rev<-cbind(table_rev,subset(table_case,select=freq))
+table_rev<-replace(table_rev, is.na(table_rev), 0)
+
+label_chn<-list(c('序号','学院',
+                  '双语(全英文)计划数','双语(全英文)实际数',
+                  '研讨翻转课堂计划数','研讨翻转课堂实际数',
+                  '课程考核改革计划数','课程考核改革实际数',
+                  '学术讲座(2017秋)','学术讲座(2018春)','改革案例数'))
+table_rev_chn<-table_rev
+dimnames(table_rev_chn)[2]<-label_chn
+n<-dim(table_rev_chn)[1]
+
+```
+
+
+统计表如下：
+
+```{r revolution-stat,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+# View(table_teach)
+kable(table_rev_chn,booktabs = TRUE,caption = paste0("课堂教学改革情况","(n=",n,")"),row.names = FALSE)
+#names(table_teach)
+``` 
+
+
+* 双语(全英文)计划数合计为`r sum(table_rev$dual)`,双语(全英文)实际数合计为`r sum(table_rev$C6)`
+* 研讨翻转课堂计划数合计为`r sum(table_rev$invert)`,研讨翻转课堂实际数合计为`r sum(table_rev$C7)`
+* 课程考核改革计划数合计为`r sum(table_rev$eval)`,课程考核改革实际数合计为`r sum(table_rev$C8)`
+* 学术讲座(2017秋)合计为`r sum(table_rev$seminar)`,学术讲座(2018春)合计为`r sum(table_rev$C9)`
+
+
+柱状图如下：
+
+```{r bar-rev,message=FALSE,echo=FALSE,error=FALSE,fig.cap="各学院教学改革案例数"}
+table<-replace(table,is.na(table),0)
+p<-ggplot(data=table_rev,aes(x=reorder(college,freq),y=freq))+geom_bar(stat = 'identity',fill='blue')
+P1<-p+ coord_flip()
+P1+labs(x='',y='案例数')+geom_text(aes(label=freq),color='red')
+#names(table_long)
+```
+
+<!---
+# 双一流学科学院比较
+
+（此处有一张表）双一流学科学院分布表  
+
+```{r data-spends,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+kable(table[c(5,8,10),c(1:2)],booktabs = TRUE,caption = paste0("双一流学院","(n=",3,")"),row.names = FALSE)
+``` 
+--->
+
+
+
+
+# 2017-2018学年第二学期期中教学检查总结
+
+
+为全面深入了解本学期开学以来教学运行状况，及时发现、研究和解决教学运行过程中存在的问题，促进教风与学风建设，提高教学质量，学校于第10-11周组织各教学单位及有关处室开展了本学期期中教学检查工作。各单位及有关处室周密部署，落实检查工作，通过组织召开学生、教师座谈会、实地检查等方式，对本科教学工作进行了全面检查，以查促改，保证了本学期教学工作顺利开展。现将具体情况总结如下：
+
+
+## 一、常规教学情况
+
+### （一）课堂、实践教学秩序良好
+
+通过为期两周的全面检查发现，本学期我校实际开出课程1221门，整体教风良好，教师能严格执行教学进程安排，认真备课，精心准备教案和PPT讲义，教学日历齐备，授课态度认真、能及时批改作业及辅导答疑。大部分学生学习态度端正，听课认真，课堂纪律和课堂气氛良好。
+本学期全校开设实验实习课程共计203门，各学院（系）都能认真执行实践教学计划，克服设备仪器陈旧、不足，自主性实习基地缺乏、师资紧张等诸多困难，充分有效利用现有资源完成教学任务，实习、实验课程运行正常。
+
+### （二）实验室安全运行但仍存隐患
+
+各学院对实验室实验教学条件保障、实验室安全等情况进行了检查。火源管理、易燃物品管理能按照学校的相关规定要求管理，高温设备操作规范，大部分实验楼消防通道畅通，实验室水路配套设施安全。在危险化学用品管理上能做到双人双锁管理、定量登记发放、用后及时收回。但依然有个别学院如机电学院实验设备存放拥挤，存在科研试验挤占了安全通道情况；生命学院生工实训中心存在部分水龙头漏水，用水阀门待维修，压力容器安全超期服役等问题。部分学院实验室存在线路及开关、插座老化现象，机械与电子工程学院、理学院、化药学院实验室下雨墙体渗水，墙面电路有用电安全隐患。
+
+
+## 二、重点检查内容情况
+
+
+
+### （一）教授、副教授上课情况
+
+本学期对各学院教授、副教授讲授本科生课程情况进行了检查。2017-2018学年第二学期全校在编专任教师人数为`r sum(table$Aa_sum,na.rm=T)`，其中高级职称在编专任教师人数为`r sum(table$Aa_sum_h,na.rm=T)`，占比为`r mean(table$Aa_ratio_h,na.rm=T)`%。其中主讲本科生课程的教授人数为`r sum(table$Ac1,na.rm=T)`人，占全部在编专任教师的 `r 100*sum(table$Ac1,na.rm=T)/sum(table$Aa_sum,na.rm=T)`%，占在编教授中的`r 100*sum(table$Ac1,na.rm=T)/sum(table$Aa1,na.rm=T)`%；教授人均授课`r sum(table$Ad1,na.rm=T)/sum(table$Ac1,na.rm=T)` 门，  人均授课课`r sum(table$Ad2,na.rm=T)/sum(table$Ac1,na.rm=T)`个教学班。其中主讲本科生课程的副教授人数为`r sum(table$Ac2,na.rm=T)`人，占全部在编专任教师的 `r 100*sum(table$Ac2,na.rm=T)/sum(table$Aa_sum,na.rm=T)`%，占在编副教授中的`r 100*sum(table$Ac2,na.rm=T)/sum(table$Aa2,na.rm=T)`%；副教授人均授课`r sum(table$Ad3,na.rm=T)/sum(table$Ac2,na.rm=T)` 门，  人均授课课`r sum(table$Ad5,na.rm=T)/sum(table$Ac2,na.rm=T)`教学班。其中，主讲本科生课程的教授和副教授人数最多的学院是`r table$colleage[which.max(table$Ac_sum_h)]`，教授、副教授中主讲本科生课程最少的学院为`r table$colleage[which.min(table$Ac_sum_h)]`。本学期外聘教师`r sum(table$Ae1,na.rm=T)`人，共承担`r sum(table$Ae2,na.rm=T)`门本科生课程；参加培训进修、境内外交流的人数达`r sum(table$Ab_sum,na.rm=T)`人，交流的人数最多的学院为`r table$colleage[which.max(table$Ab_sum)]`。没有参加培训进修、境内外交流的学院是`r paste(table$colleage[which(table$Ab_sum==0)],collapse = '和')` 。
+
+### （二）各学院听课情况
+
+全校院系共有处级干部`r sum(table$B1,na.rm=T)`人，听课共计`r sum(table$B2,na.rm=T)`门次，人均听课`r sum(table$B2,na.rm=T)/sum(table$B1,na.rm=T)`门次,院系平均听课`r mean(table$B2,na.rm=T)`门次。学院教学督导听课共计`r sum(listen_count_var$supervisor,na.rm=T)`门次，院系平均听课`r mean(listen_count_var$supervisor,na.rm=T)`门次。学院同行专家听课共计`r sum(listen_count_var$peer,na.rm=T)`门次，院系平均听课`r mean(listen_count_var$peer,na.rm=T)`门次。学院（系）总平均听课门次为`r mean(listen_count_var$tot,na.rm=T)`门次，听课次数最多的为`r paste(listen_count_var[which.max(listen_count_var$tot),c('college','tot')],collapse = '')`  门次，其次为马克思主义学院（109门次），最少的为`r paste(listen_count_var[which.min(listen_count_var$tot),c('college','tot')],collapse = '')`门次。
+
+本学期共开教学工作会议111次，平均每学院5次会议。教学会议最多的学院为人文学院共13次，其次为信息学院和食品学院，均为10次。
+
+### （三）各学院教学改革情况
+
+本学期共开设双语（全英文）课程26门，有48门课程进行了翻转课堂、研讨式教学模式改革，有19门课程进行了课程考核方式改革，组织面向本科生学生讲座共89场（2017秋为101场），提供课堂质量提升案例`r sum(table_rev$freq,na.rm=T)`个。双语（全英文）课程开设最多的为生命学院、动科学院、创新学院；翻转、研讨教学改革最多的为经管学院、资环学院、水建学院；课程考核改革最多的学院为资环学院；组织学术讲座最多学院为生命学院、资环学院。整体而言，资环学院本科教学改革活动较多。
+
+
+
+## 三、存在的问题与建议
+
+### （一）教学管理工作有待优化
+
+（1）教学管理人员不足、教学管理集中在琐碎的事务性工作，对常规教学研究上精力不足。教学管理系统无更新，严重影响教学工作效率。
+
+（2）管理重心下移，教师承担的事务性工作增多，但缺乏配套的激励措施。
+
+（3）基层教学组织的作用未能很好的发挥出来，实验教学中心的功能在创新人才培养中体现不够。
+
+（4）质量工程数量有待进一步提高，课程建设支持缺乏持续性。
+
+（5）社会评价体系不完善，毕业生及用人单位等社会反馈和跟踪调查体系不完善。
+
+（6） 部分课程安排不合理，尤其是跨校区上课、晚上安排课程师生意见较大。部分专业生物学大实习、工程训练的安排与游泳课教学的冲突。
+
+### （二）教学有待改进
+
+（1）实习实践条件有待改善。一是教室环境有待改进，当前大部分教室布局设置不适应新型多样的教学模式，不利于师生互动，临近课堂或教室的相互干扰严重。电脑、投影仪等设备老化，也是督导和教师反应最多的问题。例如S206反映多次投影仪和电脑有问题，但直到课程结束，设备都一直未检修好，导致几次课受影响，甚至中途换教室影响上课。南校1号教学楼电脑反应慢且未连网，激光笔失灵。个别多媒体教室投影灯光很暗，老师的课件看不清楚。二是学院稳定的实习基地较少、质量不高，分配实践教学经费不足，个别专业课程缺乏实践基地，如观赏植物实践课程，茶学实验室的面积不够，需补充一间人工气候室等。三是教学实验仪器设备有待更新，部分设备老化影响了正常教学活动致使调课频繁。如信息学院计算机教学实验中心42%的计算机处于淘汰期，现有计算机不但硬件配置低、速度慢，且因长期超负荷使用，随机故障很高，致使5个实验室难以保障当前教学。网络与安全实验室设备使用达13年，故障高发，且实验室空间小，无法满足“网络综合实验”集中实习的课程要求。
+
+（2）优质教学资源不足，省级及以上精品资源共享课、教学成果奖、教学名师、创新实验区等缺乏。
+
+（3）网络课程建设有待加强，网络课程的教学功能没有完全发挥，慕课、微课等网络在线课程较少，且大部分课程仅限于网上布置作业和学生自学，还没有实现完全的在线师生互动。课程考核方式相对较单一，个别学院后半学期课程安排较集中，教师在讲课中有赶课现象。
+
+（4）先行人才培养方案与专业认证标准存在差距，2014版培养方案造成低年级课程多，高年级课程少，希望适当调整。
+
+### （三）教师队伍有待加强
+
+（1）部分专业教师紧缺，专业课程任务难以落实。如园艺学院观赏园艺、茶学园艺、设施专业的师资不够、食品学院学院具有较强工程实践能力和工程背景的教师比例偏低，毕业生毕业设计占比严重不足，青年教师工程实践能力有待加强。
+
+（2）学科专业领军人才和高水平教学团队缺乏；部分学院专业师资配比不平衡，地理信息科学、人文地理与城乡规划专业教授偏少，尤其人文地理与城乡规划专业师资缺乏，水保专业工程背景师资缺乏。而外语、思政教师课时量过大，教学任务较重。
+
+（3）重科研轻教学现象严重。教师投入教学改革研究的精力不足，基层教学组织内部研讨教学、外出交流培训少。
+
+（4）年轻教师的授课水平和生产实践经验有待提高。个别老师方言较重，外学院部分教师上课状态较差。
+
+（5）教学的形式及方法有待改进，课程课堂气氛不够活跃，个别教师讲课重点与难点不明确，不注重与学生互动、启发学生思维，教学设计、多媒体课件、教学方法和授课技巧有待改进。
+
+### （四）学风亟须改善
+
+（1）学生的学习纪律性滑坡，特别是上课迟到、旷课、玩手机现象普遍；尤其在高年级学生中更为严重；由于夏季天气炎热，教室闷热，学生在下午前两节课精神不足。
+
+（2）部分学院学生专业学习兴趣和热情不高、转专业意愿强烈。学习主动性有待提高，综合能力、实践技能有待加强，个别学院专业大类分流后，分流后专业整体学风变差。
+
+## 四、建议
+
+（1）严格调课管理，简化办事流程，加快教学管理的信息化建设，完善更新教务系统，让教学管理人员和教师少跑路。请各项工作应留足学院的教学管理工作时间。
+
+（2）尽量不要在国家法定的节假日安排课程，不应设置调课周频繁调课，学时不足可由教师自行安排补课。
+
+（3）减少各类繁琐表格填报工作，建议狠抓论文质量，简化形式。毕业论文过程管理太繁琐，如毕业论文换题，应该原则上经导师同意后可以换题，只要换题时间5个月以上就可以，而且换题后只需提供导师和学院主管院长签字的换题申请即可，不需要繁琐地重新提交其他一系列开题材料。
+
+（4）加快教室建设，应定期检查，及时维修有问题的教学设备。定期补充和发放扩音器。定期检查，及时维修成绩单打印机。
+
+（5）优化评教体系，尤其是要考虑学生评教人数对评教结果的影响。
+
+（6）加大教学改革项目支持数量，让更多教师有机会参与教学改革，各类评选应充分考虑课程、学科之间的差异。加大大学生创新项目支持力度，提高实验课课时费。
+
+（7）建议尽快启动培养方案修订工作，出台修订原则意见，指导学院修订工作，加强英语教学。
+

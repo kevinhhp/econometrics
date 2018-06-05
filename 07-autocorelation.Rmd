@@ -1,0 +1,727 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 7 自相关问题的诊断和矫正"
+author: "胡华平"
+date: "2018/4/27"
+output: 
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: yes
+    toc_depth: 5
+    number_sections: no
+    keep_tex: true
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: no
+    toc_depth: 4
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+
+\newpage
+
+```{r global_options7, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(fig.align='center') # Places figures on their own pages
+library('bookdown')
+library('knitr')
+library('xlsx')
+options(digits=4,scipen=999)
+```
+
+
+## 实验目的及要求
+
+*  **目的**：掌握自相关问题的检验与处理方法。
+*  **要求**：在老师指导下完成计量经济模型的自相关检验，并对存在异方差的模型进行修正，最终得到正确的分析结果。
+
+$$\begin{alignedat}{5}\begin{split}& \widehat{wage}=&+130.36&+10.47edu_D2&+49.71edu_D3&+162.59edu_D4&+59.37dpt_D2 \\ & \text{(t)}&(7.3397)&(0.3126)&(1.4818)&(2.9944)&(2.3899)\end{split}(\#eq:test)
+ \end{alignedat}$$
+
+other equation
+
+$$\begin{alignedat}{5} & \widehat{wage}=&+130.36&+10.47edu_D2&+49.71edu_D3&+162.59edu_D4&+59.37dpt_D2 \\ & \text{(t)}&(7.3397)&(0.3126)&(1.4818)&(2.9944)&(2.3899) \\ & \text{(se)}&(17.7609)&(33.4850)&(33.5470)&(54.2989)&(24.8399) \\ & \quad&-106.49sex_D2 \\ & \text{(t)}&(-3.7005) \\ & \text{(se)}&(28.7784) \\ & \text{(fitness)}& \quad& R^2=0.2204& \bar{R^2}=0.1843& F^{\ast}=6.1053 \end{alignedat}$$
+
+
+
+## 实验原理
+
+* 对于存在序列相关性的模型主要采用广义差分法消除序列相关性，并对广义差分后的模型采用普通最小二乘法估计参数，并最终计算出原模型的参数。
+
+## 实验内容
+
+```{r create_wage,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+set.seed(123)
+library("knitr")
+# get students data
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+s<-dim(students)[1]
+# get case data
+ready<-readxl::read_xlsx(path = "data/Lab7-stock.xlsx",range="A1:D29")
+n<-dim(ready)[1]
+# create random Y data
+rdm<-matrix(rnorm(s*n),nrow=s) #GET RANDOM NUMBERS
+ready_rdm<-rdm+matrix(rep(t(ready[,2]),s),nrow=s,byrow=TRUE)
+ready_rdm<-format(ready_rdm,digits = 2,nsmall = 2)
+# get X data
+x_data<-ready[,c(-1,-2)]
+# get all exercise data table
+table_exercise<-as.matrix(cbind(x_data,t(ready_rdm)))
+# get students data table
+table_students<-cbind(matrix(rep(names(x_data),dim(students)[2]),nrow=dim(students)[2],byrow=TRUE),t(students))
+# conbine students data & fixed X data & random Y data
+table_lab<-as.data.frame(rbind(table_students,table_exercise))
+name_row<-c(names(students),paste0("n",1:n))
+name_col<-c(names(x_data),paste0("Ydata",1:s))
+dimnames(table_lab)<-list(name_row,name_col)
+# write table for lab exercise
+write.csv(table_lab,"data/Lab7-stock-lab.csv")
+```
+
+
+```{r load-wage,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab7-wage.xlsx",range="A1:C47")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("年份","部门工资水平","部门生产率")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+1. 采用最小二乘法建立主回归模型  
+
+2. 自相关问题模型的侦察方法  
+    a. 残差序列观察法（描点图法）：绘制$e_t$序列的描点图（dot plot）  
+    b. 残差序列观察法（描点图法）：确定滞后阶数并分别绘制$e_t$序列与${e_{t-1},e_{t-2},\cdots}$序列的散点图（scatter plot）  
+    b. 辅助回归法：构建残差$e_t$序列对${e_{t-1},e_{t-2},\cdots}$序列的辅助回归方程  
+    c. 自相关和偏相关分析法：Eviews菜单操作对残差$e_t$序列进行自相关和偏相关分析（**注意滞后阶数的选择**）
+    d. Durbin-Watson检验法：分析Eviews报告中的D-W统计量  
+    e. 拉格朗日检验法（LM-test）：Eviews菜单操作进行布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)  
+
+3. 自相关问题模型的矫正方法：  
+    a. 广义最小二乘法(GLS)：一阶差分法变换  
+    b. 广义最小二乘法(GLS)：基于残差辅助方程近似得到$\rho$  
+    c. 广义最小二乘法(GLS)：基于D-W统计量近似计算得到$\rho$  
+    d. 广义最小二乘法(GLS)：基迭代法近似计算得到$\rho$
+    e. 一致标准误校正法（HAC）：尼威-威斯特(Newey-West)校正法
+
+### 实验背景——商业部门的工资水平与生产率
+
+**部门工资案例**：表\@ref(tab:data-wage)给出给出了美国`r n`个商业部门`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面的数据。
+
+```{r data-wage,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("美国部门工资数据","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-wage)：
+
+```{r label-wage,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+\  
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+log(Y_t)=\hat{\beta}_1+\hat{\beta}_2log(X_{2t})+e_{t} (\#eq:M0-wage)
+\end{equation}
+
+
+## 主要实验步骤 
+
+###  导入数据并进行预处理
+
+*  目标：
+*  思路：
+*  新建Eviews工作文件（见图\@ref(fig:fig-load-wage)）
+    *    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y
+    *    Eviews菜单操作：
+         a. 依次操作：File$\Rightarrow$New$\Rightarrow$Workfile
+         b. 进行workfile create引导设置：
+             + workfile structure type: `unstructured/undatede`
+             + data range：`r n`
+             + workfile names(optional):
+                 - WF: `wage`（**建议命名**）
+                 - Page: `corrl`（**建议命名**）  
+
+*  Eviews导入数据
+    *  提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y数据（X数据所有同学都一样）  
+    *  菜单操作（Excel和Eviews）：  
+        a.    Excel找到数据。Excel表格中仅保留自己需要的数据（`r names(table_demo)`）
+        c.    Eviews导入数据。File$\Rightarrow$Import$\Rightarrow$Import From File：`d:/econometrics/data/Lab7-wage.xlsx`
+
+```{r fig-load-wage,message=F,echo=FALSE,fig.cap="导入数据的Eviews视窗"}
+include_graphics(path = "picture/lab7-autocorrelation/1-load-data.png")
+```
+
+###  采用最小二乘法建立主回归模型{#main-model-corrl}
+
+```{r M0-wage,echo=FALSE}
+exp_main<-formula(paste('log(',var_y, ')~',paste(paste('log(',var_x,')',sep=''),collapse = '+',sep=''),sep=''))
+model_main<-lm(formula=exp_main,data=table_demo)
+
+report_main<-summary(model_main)
+f_test<-report_main$fstatistic
+mat_coef<-report_main$coefficients
+
+```
+
+*  目标：
+*  思路：
+*  提示：主回归模型为
+
+$$log(Y_t)=\hat{\beta}_1+\hat{\beta}_2log(X_{2t})+e_{t}$$
+
+*  Eviews菜单操作（见图\@ref(fig:wage-m0)）：
+    1)  依次选择$\Rightarrow$Quick$\Rightarrow$Estimation Equation  
+    2)  引导设置Equation Estimation$\Rightarrow$specification  
+        a. Equation specification：输入命令  `r paste('log(',var_y, ') c ',paste(paste('log(',var_x,')',sep=''),collapse = '+',sep=''),sep='')`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+    3)  模型命名：建议为`eq_m0`  
+    
+        主回归分析结果见图\@ref(fig:wage-m0-report)： 
+        
+```{r wage-m0,message=F,echo=FALSE,fig.cap="主回归模型Eviews操作"}
+include_graphics(path = "picture/lab7-autocorrelation/2-eq-m0.png")
+```
+
+```{r wage-m0-report,message=F,echo=FALSE,fig.cap="主回归模型Eviews报告"}
+include_graphics(path = "picture/lab7-autocorrelation/2-eq-m0-report.png")
+```
+    
+###  侦查模型是否存在自相关问题
+
+诊断方法包括残差观察法、辅助回归法、自相关和偏相关分析法、Durbin-Watson检验法、拉格朗日检验法（LM-test）等。分析Eviews诊断报告，与相关参考标准进行比较，得到相关结论
+
+#### 残差观察法：
+
+*  目标：观察残差序列、标准化残差序列，以及残差滞后序列之间的图形模式和图形关系的图形模式
+*  思路：判定$e_t,e^{\ast}_t,e_{t-1},\cdots,e_{t-s}$等的图形模式和关系
+*  提示：
+    * 描点图（dot plot）是分析一个变量的图形模式。例如残差$e_t$或标准化残差$e^{\ast}_t$（做纵轴）相对于时间$t$（做横轴）的图形关系
+    * 散点图（scatter plot）是分析两个变量之间的图形模式。例如$e_t$（做纵轴），相对于$e_{t-1}$或$e_{t-2}$或$e_{t-s}$的图形关系。  
+
+*  Eviews菜单操作：
+    1)  分别生成残差序列$e_t$、放大100倍的残差、标准化残差序列$e^{\ast}_t$和滞后一阶变量$e_{t-1}$序列（见图\@ref(fig:wage-gen-resid)）
+        a. 命令视窗（Command）依次输入命令（建议分别命名为et、et_100、et_sd和et_l1）
+            * `series et=resid`
+            * `series et_100=100*resid`
+            * `series et_sd=et/@stdev(et)`
+            * `series et_l1=et(-1)`
+        b. 运行命令：命令行中按Enter键  
+        c. 查看结果：
+            * 双击![](picture/object/Series.png)`et`
+            * 双击![](picture/object/Series.png)`et_100`
+            * 双击![](picture/object/Series.png)`et_sd`
+            * 双击![](picture/object/Series.png)`et_l1`
+
+    2)  绘制残差$e_t$和标准化残差$e^{\ast}_t$序列的描点图（dot plot）（见图\@ref(fig:wage-dot-resid)）
+        a. 选择序列对象：键盘Ctrl键+依次单击选择序列![](picture/object/Series.png)et和![](picture/object/Series.png)et_sd
+        a. 进入引导菜单：$\Rightarrow$ Quick $\Rightarrow$ Graph
+            * 选择绘图类型(Graph type)：Dot plot
+            * 选择绘图细节(Detail)：$\Rightarrow$ Multiple series $\Rightarrow$ 下拉选择 Multiple graphs
+        a. 点击完成：OK
+        a. 命名并保存绘图（graph）对象![](picture/object/Graph.png)：建议命名为dot_resid
+        a. 查看结果：双击![](picture/object/Graph.png)dot_resid（见图\@ref(fig:wage-dot-resid-eviews)）
+        
+    3)  绘制$e_t$序列对$e_{t-1}$的散点图（scatter plot）（见图\@ref(fig:wage-scatter-et)）
+        a. 选择序列对象：键盘Ctrl键+依次单击选择序列![](picture/object/Series.png)et；![](picture/object/Series.png)et_l1
+        a. 进入引导菜单：$\Rightarrow$ Quick $\Rightarrow$ Graph
+            * 选择绘图类型(Graph type)：Scatter
+            * 选择绘图细节(Detail)：**默认设置**
+        a. 点击完成：OK
+        a. 命名并保存绘图（graph）对象![](picture/object/Graph.png)：建议命名为scatter_et
+        a. 查看结果：双击![](picture/object/Graph.png)scatter_ei（见图\@ref(fig:wage-scatter-et)）  
+        
+
+        
+```{r wage-gen-resid,message=F,echo=FALSE,fig.cap="生成相关变量"}
+include_graphics(path = "picture/lab7-autocorrelation/2-wage-gen-resid.png")
+```  
+
+```{r wage-dot-resid,message=F,echo=FALSE,fig.cap="残差及标准化残差的描点图"}
+include_graphics(path = "picture/lab6-heteroskedasticity/3-dot-resid.png")
+```
+
+```{r wage-dot-resid-eviews,message=F,echo=FALSE,fig.cap="残差及标准化残差的描点图报告"}
+include_graphics(path = "picture/lab7-autocorrelation/2-dot-resid.png")
+```
+
+```{r wage-scatter-et,message=F,echo=FALSE,fig.cap="残差与残差滞后变量的散点图"}
+include_graphics(path = "picture/lab7-autocorrelation/2-scatter-et.png")
+```
+
+
+#### 辅助回归法：
+
+* 目标：根据残差图模式，构建残差辅助回归方程，得到你的初步结论  
+
+* 思路：分析残差$e_t$序列对$e_{t-1},e_{t-2},\cdots$序列的辅助回归方程\@ref(eq:A-et)的Eviews报告  
+
+* 定义：
+    * 主回归模型(Main Model)是指Y变量对全部X变量的线性回归（如主模型\@ref(eq:M0-wage)）
+    * 辅助诊断模型(Auxiliary Model)是指利用主回归模型的残差$e_t$序列对$e_{t-1},e_{t-2},\cdots$序列构建的辅助回归方程\@ref(eq:A-et)（具体的辅助诊断模型有多个）  
+
+\begin{equation}
+e_t=\hat{\rho}_1e_{t-1}+\hat{\rho}_2e_{t-2}+\cdots+\epsilon_t (\#eq:A-et)
+\end{equation} 
+
+* 诊断标准：
+    * 如果诊断辅助方程\@ref(eq:A-et)的F检验**不显著**（对应的概率值P>0.1），则表明主模型\@ref(eq:M0-wage)无自相关问题（注意是指辅助方程的自相关问题）
+    * 如果诊断辅助方程\@ref(eq:A-et)的F检验**显著**（对应的概率值P<0.1），则表明主模型\@ref(eq:M0-wage)存在自相关问题（注意是指辅助方程的自相关问题）  
+
+* Eviews说明：辅助方程\@ref(eq:A-et)的具体形式可以有多种，简单其间可以先做AR(1)辅助方程（也即$e_t$对$e_{t-1}$的回归）或AR(2)辅助方程（也即$e_t$对$e_{t-1}$和$e_{t-2}$的辅助回归）。  
+    
+* Eviews操作（此处仅展示AR(1)辅助回归方程的情形，菜单操作实现具体见图\@ref(fig:wage-AR1-test)）：
+    1)  依次选择$\Rightarrow$ Quick $\Rightarrow$ Estimation Equation  
+    2)  引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令`et et_l1`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为eq_ar1_test）
+        c. 查看结果：双击![](picture/object/Equation.png)eq_ar1_test
+
+具体Eviews报告见\@ref(fig:wage-AR1-test-report)：
+
+
+```{r wage-AR1-test,message=F,echo=FALSE,fig.cap="残差辅助回归方程的Eviews诊断操作"}
+include_graphics(path = "picture/lab7-autocorrelation/3-AR1-test.png")
+```
+
+```{r wage-AR1-test-report,message=F,echo=FALSE,fig.cap="残差辅助回归方程的诊断报告"}
+include_graphics(path = "picture/lab7-autocorrelation/3-AR1-test-report.png")
+```
+
+#### 自相关和偏相关分析法
+* 目标：根据残差自相关和偏相关图表结果，得到你的初步结论  
+
+* 思路：分析残差$e_t$序列对$e_{t-1},e_{t-2},\cdots$序列的自相关和偏相关Eviews报告（**注意滞后阶数的选择**）  
+
+* Eviews操作（菜单操作实现，具体见图\@ref(fig:wage-corrl-test)）：
+    1)  打开残差序列：双击序列（Series）对象![](picture/object/Series.png)et  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Correlogram $\Rightarrow$ Correlogram Specification
+        *  设置诊断序列（Correlogram of）: 点击选择Level
+        *  设置诊断阶数（Lags to include）：**默认设置**  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（talbe）对象：点击name(建议为tab_corrl_test)
+        *  查看结果：双击![](picture/object/Table.png)tab_corrl_test 
+        
+具体Eviews报告见\@ref(fig:wage-corrl-test-report)：
+
+
+```{r wage-corrl-test,message=F,echo=FALSE,fig.cap="残差自相关和偏相关分析的Eviews操作"}
+include_graphics(path = "picture/lab7-autocorrelation/3-corrl-test.png")
+```
+
+```{r wage-corrl-test-report,message=F,echo=FALSE,fig.cap="残差自相关和偏相关的Eviews报告"}
+include_graphics(path = "picture/lab7-autocorrelation/3-corrl-test-report.png")
+```
+
+
+#### Durbin-Watson检验法
+
+```{r dw-test,message=FALSE,echo=FALSE}
+library('lmtest')
+dw_test<-dwtest(model_main,alternative = "two.sided")
+
+```
+
+
+*  目标：观察主回归方程分析报告的D-W统计量，根据诊断标准，得出初步结论
+*  思路：得到Durbin-Watson的d统计量，并查表得到理论$\chi^2(n,k,\alpha)$分布标准值$d_L$和$d_U$，进行比较
+*  理论提示：
+    *  Durbin-Watson统计量服从$\chi^2(n,k,\alpha)$[分布](http://www.eviews.com/help/helpintro.html#page/content/timeser-Testing_for_Serial_Correlation.html)^[具体可以参看Eviews在线帮助文档。网址http://www.eviews.com/help/helpintro.html#page/content/timeser-Testing_for_Serial_Correlation.html]
+    *  $d_L$和$d_U$的理论值使用bootstrap方法仿真计算得到，与$(n,k,\alpha)$有关
+    *  $d_L$和$d_U$的理论值可以[查表](https://www3.nd.edu/~wevans1/econ30331/Durbin_Watson_tables.pdf)^[理论查表值可以参考在线文档https://www3.nd.edu/~wevans1/econ30331/Durbin_Watson_tables.pdf]
+
+*  判定准则
+    *  如果$0<d<d_L$，则表明主模型\@ref(eq:M0-wage)可能存在的一阶正自相关问题
+    *  如果$4-d_L<d<4$，则表明主模型\@ref(eq:M0-wage)可能存在的一阶负自相关问题
+        
+* 分析结论：
+    根据主回归报告（见图\@ref(fig:wage-m0-report)），Durbin-Watson的d统计量为$d=`r dw_test$statistic`$。
+    查表可知在当$(n='r n ',k=`r k+1`,\alpha=0.05)$时，$d_L=1.475,d_U=1.566$，表明$0<d<d_L$，因此认为主模型\@ref(eq:M0-wage)可能存在的一阶正自相关问题。 
+
+
+#### 拉格朗日检验法（LM-test）
+
+*  目标：对主回归方程进行布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)，根据诊断标准，得出初步结论
+*  思路：利用Eviews菜单操作Residual Diagnostics $\Rightarrow$ Serial Correlation LM Test  
+
+*  理论提示：
+    *  布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)可以检验高阶自相关的情形（见模型\@ref(eq:A-AR-p)）
+    *  布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)将计算得到一个服从$\chi^2$分布的LM统计量，具体为$LM=(n-p)R^2~\chi^2_p$
+
+\begin{equation}
+u_t=\rho_1e_{t-1}+\rho_2e_{t-2}+\cdots+\rho_pe_{t-p}+\epsilon_t (\#eq:A-AR-p)
+\end{equation}
+
+* 诊断标准
+    *  如果LM检验不显著，也即$LM<\chi^2(p,\alpha)$，则表明主模型\@ref(eq:M0-wage)不存在的p阶自相关问题
+    *  如果LM检验显著，也即$LM>\chi^2(p,\alpha)$，则表明主模型\@ref(eq:M0-wage)存在的p阶自相关问题
+    
+
+* Eviews操作（菜单操作实现，具体见图\@ref(fig:wage-LM-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Serial Correlation LM Test  
+    2） 设置检验阶数（Lag Specification）: 输入滞后阶数1（**酌情尝试**）  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（table）对象：点击name(建议为tab_LM_test)
+        *  查看结果：双击![](picture/object/Table.png)tab_LM_test 
+        
+具体Eviews报告见\@ref(fig:wage-LM-test-report)：
+
+
+
+```{r wage-LM-test,message=F,echo=FALSE,fig.cap="拉格朗日检验自相关检验的Eviews操作"}
+  include_graphics(path = "picture/lab7-autocorrelation/3-LM-test.png")
+```
+
+```{r wage-LM-test-report,message=F,echo=FALSE,fig.cap="拉格朗日检验自相关检验的Eviews报告"}
+include_graphics(path = "picture/lab7-autocorrelation/3-LM-test-report.png")
+```  
+
+### 自相关问题模型的矫正
+
+#### 广义最小二乘法(GLS)：广义差分法变换（自相关系数已知）
+*  目标：对主回归方程进行合适的广义差分变换，使得变换以后的新模型不再有自相关问题
+*  思路：如果主模型随机干扰项的自相关系数已知（见模型\@ref(eq:GLS1-AR1)），则可以直接用差分变换得到新模型（见模型\@ref(eq:GLS1-D1)），容易证明新模型将不再有自相关问题（见模型\@ref(eq:GLS1-R1)）。
+
+*  理论提示：如下将展示一阶自相情形下的广义差分变换的理论过程
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2t}+u_{t} && \text{PRM} (\#eq:GLS1-M0)\\
+u_t & =\rho u_{t-1}+\epsilon_t && \text{AR(1)} (\#eq:GLS1-AR1)\\
+\rho Y_{t-1} & =\rho \beta_1+\beta_2\rho X_{2t-1}+\rho u_{t-1} && \text{Lag 1 Model} (\#eq:GLS1-L1)\\
+(Y_t-\rho Y_{t-1}) & =\beta_1(1-\rho)+\beta_2(X_{2t}-\rho X_{2t-1})+(u_t-\rho u_{t-1}) && \Delta\text{ Model} (\#eq:GLS1-D1)\\
+Y^{\ast}_t & =\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2t}+\epsilon_{t} && \text{Adjusted Model} (\#eq:GLS1-R1)\\
+\end{align}
+
+其中，AR(1)模型\@ref(eq:GLS1-AR1)中的$\epsilon_t\sim i.i.d\ \ N(0,1)$。
+
+#### 广义最小二乘法(GLS)：基于残差辅助方程近似估计得到$\rho$（自相关系数未知）
+*  目标：对主回归方程进行合适的广义差分变换，使得变换以后的新模型不再有自相关问题
+*  思路：如果主模型随机干扰项的自相关系数未知（见模型\@ref(eq:GLS2-AR1)），则可以直接用基于残差辅助方程估计得到$\hat{\rho}$，再根据$\rho\simeq \hat{\rho}$用广义差分变换得到新模型（见模型\@ref(eq:GLS2-D1)），容易证明新模型将不再有自相关问题（见模型\@ref(eq:GLS2-R1)）。
+
+*  理论提示：如下将展示一阶自相情形下的广义差分变换的理论过程
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2t}+u_{t} && \text{PRM} (\#eq:GLS2-M1)\\
+u_t & =\rho u_{t-1}+\epsilon_t && \text{AR(1)} (\#eq:GLS2-AR1)\\
+Y_t & =\hat{\beta}_1+\hat{\beta}_2X_{2t}+e_{t} && \text{SRM} (\#eq:GLS2-S1)\\
+e_t & =\hat{\rho}e_{t-1}+v_t && \text{Auxiliary Model} (\#eq:GLS2-A1)\\
+\rho & \simeq \hat{\rho}\\
+\rho Y_{t-1} & =rho \beta_1+\beta_2\rho X_{2t-1}+\rho u_{t-1} && \text{Lag 1 Model} (\#eq:GLS2-L1)\\
+(Y_t-\rho Y_{t-1}) & =\beta_1(1-\rho)+\beta_2(X_{2t}-\rho X_{2t-1})+(u_t-\rho u_{t-1}) && \Delta1\text{ Model} (\#eq:GLS2-D1)\\
+Y^{\ast}_t & =\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2t}+\epsilon_{t} && \text{Adjusted Model} (\#eq:GLS2-R1)\\
+\end{align}
+
+其中，AR(1)模型\@ref(eq:GLS2-AR1)中的$\epsilon_t\sim i.i.d\ \ N(0,1)$。
+
+*  Eviews菜单操作
+    1)  提取辅助回归方程的回归系数。构建一个标量（Scalar）对象![](picture/object/Scalar.png)rho_ar1，并将辅助回归方程的回归系数赋值给这个标量对象rho_ar1。具体过程参看图\@ref(fig:wage-ar1-extract)
+        a.  命令视窗（Command）输入命令 ：`scalar rho_ar1=@round(10000*eq_ar1_test.@coefs(1))/10000`
+        b.  运行命令：命令行中按Enter键
+        c.  查看结果：双击![](picture/object/Scalar.png)rho_dw  
+        
+    2) 进行一阶广义差分变换，并估计新模型。依次选择$\Rightarrow$Quick$\Rightarrow$Estimation Equation$\Rightarrow$specification。具体过程参看图\@ref(fig:wage-adj-ar1)
+        a. Equation specification：输入命令  `(log(y)-rho_ar1*log(y(-1))) c (log(x)-rho_ar1*log(x(-1)))`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+        d. 模型命名：建议为`eq_adj_ar1` 
+        c. 查看结果：双击![](picture/object/Equation.png)eq_adj_ar1  
+        
+    3)  说明（[Eviews代码行的解读](http://www.eviews.com/help/helpintro.html#page/content%2FRegress1-Equation_Output.html%23)^[具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html#page/content%2FRegress1-Equation_Output.html%23）：
+        a. 代码`scalar rho_ar1=@round(10000*eq_ar1_test.@coefs(1))/10000`表示给创建一个标量（Scalar）对象![](picture/object/Scalar.png)rho_ar1,并把辅助模型\@ref(eq:A-et)的回归系数的第一个值提取出来，并赋值给这个名为rho_ar1的标量对象，同时保留四位小数。
+        b. 代码`eq_ar1_test.@coefs(1)`表示提取方程（equation）对象![](picture/object/Equation.png)eq_ar1_test的回归系数的第一个值。
+        c.  代码`@round(10000*( ))/10000`表示对数据保留4为小数。
+        
+```{r wage-ar1-extract,message=F,echo=FALSE,fig.cap="基于残差辅助方程近似计算自相关系数"}
+include_graphics(path = "picture/lab7-autocorrelation/4-ar1-extract.png")
+```
+
+```{r wage-adj-ar1,message=F,echo=FALSE,fig.cap="基于残差辅助方程的广义差分矫正操作"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-ar1.png")
+```  
+
+```{r wage-adj-ar1-report,message=F,echo=FALSE,fig.cap="基于残差辅助方程的广义差分矫正报告"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-ar1-report.png")
+```  
+   
+
+#### 广义最小二乘法(GLS)：基于D-W统计量近似计算得到$\rho$（自相关系数未知）
+*  目标：对主回归方程进行合适的广义差分变换，使得变换以后的新模型不再有自相关问题
+*  思路：如果主模型随机干扰项的自相关系数未知（见模型\@ref(eq:GLS3-AR1)），则可以基于Durbin-Waston检验的d统计量计算得到$\hat{\rho}$（见模型\@ref(eq:GLS3-DW-d)和模型\@ref(eq:GLS3-DW-rho)），再根据$\rho\simeq \hat{\rho}$用广义差分变换得到新模型（见模型\@ref(eq:GLS3-D1)），容易证明新模型将不再有自相关问题（见模型\@ref(eq:GLS3-R1)）。
+
+*  理论提示：如下将展示一阶自相情形下的广义差分变换的理论过程
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2t}+u_{t} && \text{PRM} (\#eq:GLS3-M1)\\
+u_t & =\rho u_{t-1}+\epsilon_t && \text{AR(1)} (\#eq:GLS3-AR1)\\
+d   & \simeq2(1-\hat{\rho})      && \text{Durbin-Waston} (\#eq:GLS3-DW-d)\\
+\hat{\rho} & \simeq 1-d/2 (\#eq:GLS3-DW-rho)\\
+\rho & \simeq \hat{\rho} \\
+\rho Y_{t-1} & =rho \beta_1+\beta_2\rho X_{2t-1}+\rho u_{t-1} && \text{Lag 1 Model} (\#eq:GLS3-L1)\\
+(Y_t-\rho Y_{t-1}) & =\beta_1(1-\rho)+\beta_2(X_{2t}-\rho X_{2t-1})+(u_t-\rho u_{t-1}) && \Delta1\text{ Model} (\#eq:GLS3-D1)\\
+Y^{\ast}_t & =\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2t}+\epsilon_{t} && \text{Adjusted Model} (\#eq:GLS3-R1)\\
+\end{align}
+
+其中，AR(1)模型\@ref(eq:GLS3-AR1)中的$\epsilon_t\sim i.i.d\ \ N(0,1)$。
+
+*  Eviews菜单操作
+    1)  提取并得到Durbin-Waston统计量。构建一个标量（Scalar）对象![](picture/object/Scalar.png)，建议命名为dw。具体过程参看图\@ref(fig:wage-dw-extract)
+        a.  命令视窗（Command）输入命令 ：`scalar dw=eq_m0.@dw`
+        b.  运行命令：命令行中按Enter键
+        c. 查看结果：双击![](picture/object/Scalar.png)rho_dw  
+    2)  计算得到自相关系数的近似值$\rho \simeq \hat{\rho}=1-d/2$。构建一个标量（Scalar）对象![](picture/object/Scalar.png)，建议命名为rho_dw。具体过程参看图\@ref(fig:wage-dw-extract) 。
+        a.  命令视窗（Command）输入命令 ：`scalar rho_dw=@round(10000*(1-dw/2))/10000`
+        b.  运行命令：命令行中按Enter键
+        c. 查看结果：双击![](picture/object/Scalar.png)rho_dw
+    3) 进行一阶广义差分变换，并估计新模型。依次选择$\Rightarrow$Quick$\Rightarrow$Estimation Equation$\Rightarrow$specification。具体过程参看图\@ref(fig:wage-adj-dw)
+        a. Equation specification：输入命令  `(log(y)-rho_dw*log(y(-1))) c (log(x)-rho_dw*log(x(-1)))`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+        d. 模型命名：建议为`eq_adj_dw` 
+        c. 查看结果：双击![](picture/object/Equation.png)eq_adj_dw  
+        
+    3)  说明（[Eviews代码行的解读](http://www.eviews.com/help/helpintro.html#page/content%2FRegress1-Equation_Output.html%23)^[具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html#page/content%2FRegress1-Equation_Output.html%23）：
+        a. 代码`scalar d=eq_m0.@dw`表示给创建一个标量（Scalar）对象![](picture/object/Scalar.png)dw,并把主模型\@ref(eq:M0-wage)的Durbin-Waston统计量值提取出来，并赋值给这个名为dw的标量对象。
+        b. 代码`scalar rho_dw=@round(10000*(1-dw/2))/10000`计算得到标量（Scalar）对象![](picture/object/Scalar.png)rho_dw，并对数据取4位小数。
+        
+```{r wage-dw-extract,message=F,echo=FALSE,fig.cap="基于Durbin-Waston统计量近似计算自相关系数"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-dw-rho-extract.png")
+```
+
+```{r wage-adj-dw,message=F,echo=FALSE,fig.cap="基于Durbin-Waston统计量的广义差分模型矫正操作"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-dw.png")
+```  
+
+```{r wage-adj-dw-report,message=F,echo=FALSE,fig.cap="基于Durbin-Waston统计量的广义差分模型矫正报告"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-dw-report.png")
+```  
+
+#### 可行广义最小二乘法(FGLS)：基迭代法近似计算得到$\rho$（自相关系数未知）
+
+*  目标：对主回归方程进行合适的广义差分变换，使得变换以后的新模型不再有自相关问题
+*  思路：
+    * 如果主模型随机干扰项的自相关系数未知，而且存在高阶自相关情形，则可以使用基于迭代的可行广义最小二乘法(FGLS)计算得到$\hat{\rho_1},\hat{\rho_2},\cdots,\hat{\rho_p},p\in{(1,2,\cdots)}$，再根据$\rho\simeq\hat{\rho}$用广义差分变换得到新模型（见模型\@ref(eq:GLS3-D1)），容易证明新模型将不再有自相关问题（见模型\@ref(eq:GLS3-R1)）。
+    * 这些迭代方法主要包括**科克伦-奥克特迭代法**(Cochrane-Orcutt iterative procedure) ;科克伦-奥克特两步法(Cochrane-Orcutt two-step procedure) ;德宾两步法(Durbin two-step procedure) ;希尔德雷思-卢扫描或搜寻程序(Hildreth-Lu scanning or search procedure) 等
+
+*  理论提示：如下将展示**科克伦-奥克特迭代法**下对二阶自相关（$AR(p),p=2$）情形下的广义差分变换的理论过程
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2t}+u_{t} && \text{PRM} (\#eq:GLS4-M1)\\
+u_t & =\rho_1u_{t-1}+\rho_2u_{t-2}+\epsilon_t && \text{AR(2)} (\#eq:GLS4-AR2)\\
+\cdots & \text{Cochrane-Orcutt iterative procedure}\\
+\rho_p & \simeq \hat{\rho_p} \\
+\rho_1Y_{t-1} & =\rho_1\beta_1+\beta_2\rho_1X_{2t-1}+\rho_1u_{t-1} && \text{Lag 1 Model} (\#eq:GLS4-L1)\\
+\rho_2Y_{t-2} & =\rho_2\beta_1+\beta_2\rho_2X_{2t-2}+\rho_2u_{t-2} && \text{Lag 2 Model} (\#eq:GLS4-L2)\\
+\end{align}
+
+\begin{equation}
+\begin{split}
+(Y_t-\rho_1Y_{t-1}-\rho_2Y_{t-2}) & =\beta_1(1-\rho_1-\rho_2)\\
+& +\beta_2(X_{2t}-\rho_1X_{2t-1}-\rho_2X_{2t-2}) \\
+& +(u_t-\rho_1u_{t-1}-\rho_2u_{t-2})  
+\end{split}
+\Delta2\text{ Model}
+(\#eq:GLS4-D2)
+\end{equation}
+
+
+\begin{align}
+Y^{\ast}_t &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2t}+\epsilon_{t} && \text{Adjusted Model} 
+(\#eq:GLS4-R2)
+\end{align}
+
+
+*  Eviews菜单操作（此处展示的是AR(1)的自相关情形，见图\@ref(fig:wage-adj-CO)）：
+    1)  依次选择$\Rightarrow$Quick$\Rightarrow$Estimation Equation  
+    2)  引导设置Equation Estimation$\Rightarrow$specification  
+        a. Equation specification：输入命令  `r paste('log(',var_y, ') c ',paste(paste('log(',var_x,')',sep=''),collapse = '+',sep=''),' AR(1)',sep='')`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+    3)  模型命名：建议为`eq_adj_CO`  
+    
+        主回归分析结果见图\@ref(fig:wage-adj-CO-report)： 
+    4)  提取并得到**科克伦-奥克特迭代法**下近似的残差自相关系数$\rho$。构建一个标量（Scalar）对象![](picture/object/Scalar.png)，建议命名为rho_co。具体过程参看图\@ref(fig:wage-adj-CO-extract)
+        a.  命令视窗（Command）输入命令 ：`scalar rho_co=eq_adj_co.@coefs(3)`
+        b.  运行命令：命令行中按Enter键
+        c.  查看结果：双击![](picture/object/Scalar.png)rho_co  
+    5)  说明（[Eviews代码行的解读](http://www.eviews.com/help/helpintro.html#page/content%2FRegress1-Equation_Output.html%23)^[具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html#page/content%2FRegress1-Equation_Output.html%23）：
+        a. 代码`scalar rho_co=eq_adj_co.@coefs(3)`表示给创建一个标量（Scalar）对象![](picture/object/Scalar.png)rho_co,并把方程（Equation）对象![](picture/object/Equation.png)eq_adj_co的第三个回归系数提取出来，赋值给这个标量对象![](picture/object/Scalar.png)rho_co。    
+        
+```{r wage-adj-CO,message=F,echo=FALSE,fig.cap="基于科克伦-奥克特迭代法的FGLS模型矫正Eviews操作"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-CO.png")
+```
+
+```{r wage-adj-CO-report,message=F,echo=FALSE,fig.cap="基于科克伦-奥克特迭代法的FGLS模型矫正Eviews报告"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-CO-report.png")
+```
+
+```{r wage-adj-CO-extract,message=F,echo=FALSE,fig.cap="基于科克伦-奥克特迭代法近似计算的自相关系数"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-co-rho-extract.png")
+```
+
+#### 一致性标准误校正法（HAC）：尼威-威斯特(Newey-West)校正法
+*  目标：直接用尼威-威斯特(Newey-West)一致性标准误矫正流程方法，构建回归分析模型，此时模型的自相关问题将会有所缓解。  
+*  思路：利用Eviews菜单操作，进行基于尼威-威斯特(Newey-West)一致性标准误矫正程序的建模分析。  
+
+*  理论提示：（数学表达和证明过程略）
+    *  异方差-自相关一致性标准误（heteroscedasticity-autocorralation consistent standard errors，HAC）也被简称为尼威-威斯特一致性标准误(Newey-West consistent standard errors)
+    *  尼威-威斯特(Newey-West)一致性标准误矫正程序或菜单，在主流的统计软件里都会配置
+    *  尼威-威斯特(Newey-West)一致性标准误矫正程序，严格意义上对于大样本数据是有效的，因此不太适合于小样本数据的情形。  
+
+*  Eviews操作（见图\@ref(fig:wage-adj-NW)）
+    1)  依次选择$\Rightarrow$ Quick $\Rightarrow$ Estimation Equation  
+    2)  引导设置Equation Estimation $\Rightarrow$ Specification  
+        a. 方程设置（Equation Specification）： 输入变量`r paste('log(',var_y, ') c ',paste(paste('log(',var_x,')',sep=''),collapse = '+',sep=''),sep='')`
+        b. 估计方法（Estimation settings）：
+            * Method：选择`LS - Least Squares(NLS and ARMA)`
+            * Sample： **默认设置**
+    3) 引导设置Equation Estimation $\Rightarrow$ Options
+        a. 系数协方差设置（Coefficient covariance）
+            * 协方差方法（Coefficient method）：下拉选择HAC (Newey-West)
+        c. 权重设置（Weights）：默认设置
+        c. 最优化设置（Optimization）：默认设置
+        c. 完成设置：点击`OK`  
+    3) 模型命名：建议为`eq_adj_NW`  
+    4) 查看分析报告（见图\@ref(fig:wage-adj-NW-report)）
+ 
+```{r wage-adj-NW,message=F,echo=FALSE,fig.cap="尼威-威斯特(Newey-West)矫正法的操作"}
+  include_graphics(path = "picture/lab7-autocorrelation/4-adj-NW.png")
+```
+
+```{r wage-adj-NW-report,message=F,echo=FALSE,fig.cap="尼威-威斯特(Newey-West)矫正法的Eviews报告"}
+include_graphics(path = "picture/lab7-autocorrelation/4-adj-NW-report.png")
+```  
+
+
+
+## 作业题
+
+\newpage
+
+```{r load-inventory,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab7-inventory.xlsx",range="A1:C42")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("年份","存货（百万美元）","销售额（百万美元）")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+**存货案例**：表\@ref(tab:data-inventory)给出给出了`r n`年的`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面数据。
+
+```{r data-inventory,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+knitr::kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("存货与销售额","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-inventory)：
+
+```{r label-inventory,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+请考虑如下样本回归模型：
+
+
+\begin{equation}
+Y_t =\beta_1+\beta_2X_{2t}+u_{t}  (\#eq:M0-classic)
+\end{equation}
+
+\begin{equation}
+ln(Y_t) =\beta_1+\beta_2ln(X_{2t})+u_{t}  (\#eq:M0-log)
+\end{equation}
+
+\begin{equation}
+e_t=\hat{\rho}_1e_{t-1}+\hat{\rho}_2e_{t-2}+\cdots+\epsilon_t (\#eq:AR2-et)
+\end{equation}
+
+请回答如下问题:  
+
+1. 根据总体回归模型\@ref(eq:M0-classic)，请对模型参数的理论预期（符号、大小、关系）进行说明。 
+
+1. 利用Eviews对模型\@ref(eq:M0-classic)进行回归分析（将报告截图过来，并写出相应的简要报告形式——三行式或四行式）。参数估计结果符合你的理论预期么？ 
+
+3. 回归模型\@ref(eq:M0-classic)存在自相关问题的证据吗？请按照下列方法分别进行诊断，并分别得到分析结论（要求截图过来并进行简要说明）:  
+    a. 残差序列观察法（描点图法）：绘制$e_t$序列的描点图（dot plot），得到你的初步结论。  
+    b. 残差序列观察法（描点图法）：根据前述观察，确定滞后阶数并分别绘制$e_t$序列与${e_{t-1},e_{t-2},\cdots}$序列的散点图（scatter plot），得到你的初步结论  
+    b. 辅助回归法：构建残差$e_t$序列对${e_{t-1},e_{t-2},\cdots}$序列的辅助回归方程\@ref(eq:AR2-et)，得到你的初步结论  
+    c. 自相关和偏相关分析法：Eviews菜单操作对残差$e_t$序列进行自相关和偏相关分析（**注意滞后阶数的选择**）
+    d. Durbin-Watson检验法：分析Eviews报告中的D-W统计量  
+    e. 拉格朗日检验法（LM-test）：Eviews菜单操作进行布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)  
+
+4. 若发现回归模型\@ref(eq:M0-classic)存在自相关问题，你如何对该模型进行矫正？请按照下列方法分别进行诊断，并分别得到分析结论（要求截图过来并进行简要说明）：  
+    a. 广义最小二乘法(GLS)：一阶差分法变换  
+    b. 广义最小二乘法(GLS)：基于残差辅助方程\@ref(eq:AR2-et)中估计出来的$\hat{\rho}$近似得到$\rho$。  
+    c. 广义最小二乘法(GLS)：基于D-W统计量近似计算得到$\rho$。  
+    d. 广义最小二乘法(GLS)：基迭代法近似计算得到$\rho$。  
+    e. 一致标准误校正法（HAC）：尼威-威斯特(Newey-West)校正法  
+    f. 对数变换法：对数模型\@ref(eq:M0-log)进行Eviews回归分析  
+5. 如果模型\@ref(eq:M0-classic)与上面各种方法修正的结果相差较大，你认为哪一个方法要相对较好，为什么？  
+
+--->

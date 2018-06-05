@@ -1,0 +1,281 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 3 模型函数形式与模型选择"
+author: "胡华平"
+date: "2018/3/22"
+output: 
+  bookdown::word_document2: default
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    keep_tex: true
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+```{r global_options, include=FALSE,message=FALSE,}
+knitr::opts_chunk$set(out.height = '8in',fig.align='center') # Places figures on their own pages
+```
+
+```{r setup, include=FALSE,echo=FALSE,eval=FALSE}
+install.packages("yaml")
+library("yaml")
+yaml::yaml.load(
+'output:
+  pdf_document:
+    latex_engine: xelatex')
+```
+
+# 实验目的及要求
+
+*  **目的**：掌握几种模型函数形式的特征，理解函数形式选择的原理。
+*  **要求**：在老师指导下能用Eviews软件进行各种形式模型的变换与处理，包括普通线性模型、过原点模型、标准化处理模型、双对数模型、半对数模型、倒数模型，得到正确的分析结果；能运用合适的计算公式，得到正确的斜率和弹性计算值。
+
+# 实验原理
+*  无论是一元线性回归还是多元线性回归，模型正确设置的一个重要前提就是能够正确地选择合适的函数形式，或者需要对变量进行变换处理（标准化、取对数等）。同样的实证案例，使用普通线性模型、过原点模型、标准化处理模型、双对数模型、半对数模型、倒数模型需要视案例具体情形而定，还需要结合经济学理论，通过多次尝试方才能够找到相对满意的具体模型形式。
+*  此外，斜率和弹性，都是具有数学和经济学含义的重要概念，不同函数形式下实现对二者的正确计算，是得出有价值的模型估计结论的重要途径。
+
+
+# 实验内容
+
+## 实验方案设计
+*  进行不同模型形式的Eviews操作，包括过原点模型、标准化处理模型、双对数模型、半对数模型、倒数模型。
+
+*  学会计算不同模型形式下Y对X的斜率和弹性公式。
+
+Table: 模型函数形式及计算 \label{modelslc}
+
+-------------------------------------------------------------------------------------------------------------
+模型                  方程                                  斜率                平均弹性
+--------------------  ------------------------------------  ------------------  ---------------------------
+$M_1$线性模型         $Y_i=\beta_1+\beta_2X_i+u_i$          $\beta_2$           $\beta_2\bar{X}/\bar{Y}$
+   
+$M_2$过原点模型       $Y_i=\beta_2X_i+u_i$                  $\beta_2$           $\beta_2\bar{X}/\bar{Y}$
+
+$M_3$双对数模型       $ln(Y_i)=\beta_1+\beta_2ln(X_i)+u_i$  $\beta_2X_i/Y_i$    $\beta_2$
+
+$M_4$线性到对数模型   $ln(Y_i)=\beta_1+\beta_2X_i+u_i$      $\beta_2Y_i$        $\beta_2\bar{X}$
+
+$M_5$对数到线性模型   $Y_i=\beta_1+\beta_2ln(X_i)+u_i$      $\beta_2/X_i$       $\beta_2/\bar{Y}$
+
+$M_6$倒数模型         $Y_i=\beta_1+\beta_2/X_i+u_i$         $\beta_2/X_i^2$     $-\beta_2/(\bar{X}\bar{Y})$
+
+$M_7$对数模型         $ln(Y_i)=\beta_1+\beta_2/X_i+u_i$     $\beta_2Y_i/X_i^2$  $\beta_2/\bar{X}$
+--------------------------------------------------------------------------------------------------------------
+
+\ 
+
+\newpage
+
+## 实验背景——英国家庭食物支出
+
+**家庭食物支出**：表\@ref(tab:family-spends)给出了各种支出、总支出、收入、家长年龄和子女数的变量定义，样本取自1980-1982年间英国家庭支出调查中1519个家庭。数据只包括住在伦敦市区和市郊有1~2个子女的家庭，样本不包括自我雇佣和退休家庭。
+\  
+```{r,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+library("knitr")
+spends<-readxl::read_xlsx(path = "data/Lab3-family-spends.xlsx")
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+k<-dim(students)[1]
+n<-dim(spends)[1]
+rdm<-matrix(rnorm(n*k),nrow=n) #GET RANDOM NUMBERS
+food_rdm<-rdm+matrix(rep(spends$food,k),nrow=n)
+food_rdm<-format(food_rdm,digits = 2,nsmall = 2)
+table_1r<-t(students)
+table_rdm<-rbind(table_1r,food_rdm)
+blank1<-data.frame(rep(NA,dim(table_1r)[1]))
+blank2<-data.frame(spends$totexp)
+dimnames(blank1)[2]<-names(blank2)
+table_same<-rbind(blank1,blank2)
+table_exercise<-cbind(table_same,table_rdm)
+table_exercise[1:4,1]<-"totexp"
+dimnames(table_exercise)[1]<-list(c(LETTERS[1:4],1:(dim(table_exercise)[1]-4)))
+write.csv(table_exercise,"data/lab3-family-spend-random-2ed.csv")
+# for teacher'demo
+table_demo<-subset(spends,select = c("totexp","food"))
+write.csv(table_demo,"data/lab3-family-spend-demo.csv")
+```
+\ 
+变量说明见表\@ref(tab:family-label)： 
+```{r family-label,message=F,echo=FALSE,results='asis'}
+library("knitr")
+spends<-readxl::read_xlsx(path = "data/Lab3-family-spends.xlsx")
+label<-c("家庭编号ID","食物支出占总支出的比重","燃油支出占总支出的比重","服装支出占总支出的比重","酒类支出占总支出的比重","交通支出占总支出的比重","其他支出占总支出的比重","家庭总支出(10英镑)","家庭总净收入(10英镑)","户主年龄","子女数","食物支出(10英镑)","燃料支出(10英镑)","服装支出(10英镑)","酒类支出(10英镑)","交通支出(10英镑)","其他支出(10英镑)")
+var_label<-data.frame(list(variable=names(spends),label=label))
+label_slc<-subset(var_label,variable %in% c("id","totexp","food"))
+kable(label_slc,caption = "变量定义及说明",format = "latex",row.names=FALSE)
+```
+\  
+
+\blandscape
+```{r family-spends,message=F,echo=FALSE,results='asis'}
+library("knitr")
+spends<-readxl::read_xlsx(path = "data/Lab3-family-spends.xlsx")
+spends_rnd<-read.csv("data/lab3-family-spend-random-2ed.csv",header = T,sep=",")
+spends_slc<-spends_rnd[c(1:9,(dim(spends_rnd)[1]-4):(dim(spends_rnd)[1])),1:10]
+kable(spends_slc,caption = paste0("英国家庭食物支出","(n=",dim(spends)[1],")"),row.names = FALSE)
+```
+\elandscape  
+
+
+\  
+
+根据上述资料请回答如下问题：
+
+a.  利用家庭总支出(`r names(spends_slc)[2]`)与食物支出(`r names(spends_slc)[3]`)数据，通过对表\ref{modelslc} 中概括的各类模型，对变量进行相应变换，并分别作出散点图（七个图）。（提示：分别把图拷贝过来）
+
+b.  利用家庭总支出(`r names(spends_slc)[2]`)与食物支出(`r names(spends_slc)[3]`)数据，对表\ref{modelslc} 中概括的各类模型进行回归拟合（七个模型）?（提示：分别把分析报告截图复制过来）
+
+c.  利用(b)的分析结果，分别计算各模型的平均弹性(els)以及在点$(X_0=100,Y_0=30)$处的斜率(slp)。 
+
+d.  基于(a)和 (b) 中得到的结果，你认为哪个模型看来比较适当？
+
+
+# 主要实验步骤(以倒数模型$M_6$为例)
+
+## 绘制倒数模型$M_6$的散点图
+
+*  Eviews操作目标：得到$Y_i$相对于$1/X_i$的散点图
+
+*  Eviews操作思路：
+
+    *  利用X序列生成$1/X$序列，建议Eviews命名为`x6`
+        *    命令操作：`series x6=1/x`
+    
+    *  绘制Y序列相对`x6`序列的散点图（scatter）
+        *    菜单操作：（略）
+
+ 
+```{r scatter,message=F,echo=FALSE,fig.cap="变换数据并绘制散点图"}
+include_graphics(path = "picture/lab3-model-function/scatter6.png")
+```
+  
+
+
+
+## 对倒数模型$M_6$进行Eviews回归分析并提取回归系数
+
+*  Eviews操作目标：得到$Y_i$相对于$1/X_i$的Eviews回归报告，提取回归系数
+
+*  Eviews操作思路：
+
+    *  利用常规流程获得Eviews回归分析：
+    
+          *  菜单操作：Quick-->estimate equation--> `y c 1/x`
+    
+    *  保存好分析报告（建议命名为m6）：
+    
+          *  菜单操作：Name-->m6
+    
+    *  提取报告中的回归系数（建议命名为`coef6`）：
+    
+          *  命令操作：`coef coef6=c`
+        
+*  Eviews操提示：两个Eviews模型内置对象（![](picture/object/Beta.png)C和![](picture/object/Series.png)rsid）
+    *  ![](picture/object/Beta.png)C和![](picture/object/Series.png)rsid都是Eviews模型内置对象，一旦建立workfile就会系统产生，用户不能对它进行删除或重命名（delete or rename）操作。
+        +  ![](picture/object/Beta.png)C属于**系数**对象（[coef object](http://www.eviews.com/help/helpintro.html#page/content%2Fcoefcmd-coef_2.html%23ww184054)），这类对象主要用于表示系数列向量（coefficient column vector）。![](picture/object/Beta.png)C是用来装载回归模型的系数$\hat{\beta}_1$和$\hat{\beta}_2$……
+        +  ![](picture/object/series.png)resid属于**序列**对象（[series object](http://www.eviews.com/help/helpintro.html#page/content%2Fseriescmd-series_2.html%23ww203659)），这类对象主要用于表示序列（series）。![](picture/object/series.png)resid是用来装载回归模型的残差$e_i$
+    
+    *  ![](picture/object/Beta.png)C和![](picture/object/Series.png)rsid是“临时容器”。它们只会装载最近一次Eviews建模分析（Estimate Equation）时的回归系数$\hat{\beta}_i$和回归残差$e_i$。一旦用户进行了新的Eviews建模分析（Estimate Equation）操作，它们就立即会被最新回归建模的系数和残差信息所“更新”。
+    
+    *  如果用户要创建多个回归方程，又想保留每个回归方程的回归系数$\hat{\beta}_i$和残差$e_i$，可以通过下面两种方法将结果从“临时容器”中提取出来，并保存到指定的对象中去：
+          +    键鼠操作法。对![](picture/object/Beta.png)C或![](picture/object/Series.png)rsid右键拷贝（copy），然后在窗口区粘贴（paste），并进行重命名，保存。
+          +    命令操作法。
+              *    在命令窗口中输入Eviews命令`coef c01=c`，即可得到当前回归模型系数![](picture/object/Beta.png)C的复制品`c01`（用户可以自己定义对象名称）。
+              *    在命令窗口中输入Eviews命令`series resid01=resid`，即可得到当前回归模型系数![](picture/object/series.png)resid的复制品`resid01`（用户可以自己定义对象名称）。
+    
+    *   “临时容器”![](picture/object/Beta.png)C和![](picture/object/Series.png)rsid按照Eviews建模先后次序不断被“更新”信息（分别是回归系数和残差序列）。“更新”基本原则是“依次占据对象的空间位置”。
+        *    回归方程的系数$\hat{\beta}_i$会依次占据![](picture/object/Beta.png)C对象的第1个单元格、第2个单元格、……，回归系数个数占据空间位置的多少因模型方程的不同而不同。尤其要注意的情形是：上一次操作回归模型的回归系数多，而最近一次操作回归模型的回归系数少。
+        *    回归方程的残差![](picture/object/series.png)resid在同一个工作文件（workfile）下，用户进行各类模型操作的样本数大多保持相同，因此，最近依次模型操作一般都会“完全更新”上一次模型操作的残差序列。
+        
+ 
+```{r equation6,message=F,echo=FALSE,fig.cap="构造倒数模型的回归方程"}
+include_graphics(path = "picture/lab3-model-function/equation6.png")
+```
+  
+```{r coef6,message=F,echo=FALSE,fig.cap="提取回归方程的系数"}
+include_graphics(path = "picture/lab3-model-function/coef6.png")
+```
+ 
+
+## 倒数模型$M_6$情形下，计算Y相对于X的点斜率$(X_0=100,Y_0=30)$点斜率(slope)
+
+*  Eviews操作目标：得到Y相对于X的点斜率$(X_0=100,Y_0=30)$点斜率(slope)
+
+    *  总体回归模型（PRM）：$Y_i=\beta_1+\beta_2/X_i+u_i$ 
+    
+    *  点斜率计算公式：$\beta_2/X_i^2$
+
+*  Eviews操作思路：
+
+      *  提取`coef6`的第二个值（也即$\hat{\beta}_2$），利用斜率公式计算得到Y相对于X的点斜率（建议命名为slp6）：
+      
+          *  命令操作：`scalar slp6= -coef6(2)/100^2`
+
+ 
+```{r slope6,message=F,echo=FALSE,fig.cap="得到Y对X的点斜率"}
+include_graphics(path = "picture/lab3-model-function/slope6.png")
+```
+ 
+
+
+## 倒数模型$M_6$情形下，计算Y相对于X的平均弹性(elasticity)
+
+*  Eviews操作目标：得到Y相对于X的平均弹性(elasticity)
+
+    *  总体回归模型（PRM）：$Y_i=\beta_1+\beta_2/X_i+u_i$ 
+    
+    *  平均弹性计算公式：$-\beta_2/(\bar{X}\bar{Y}$
+
+*  Eviews操作思路：
+
+      *  求出标量$\bar{X}$和$\bar{Y}$（建议分别命名为x_mean和y_mean）：
+      
+          *  命令操作：`scalar x_mean=@mean(x)`
+        
+          *  命令操作：`scalar y_mean=@mean(y)`
+
+      *  提取`coef6`的第二个值（也即$\hat{\beta}_2$），利用平均弹性公式计算得到Y相对于X的平均弹性（建议命名为els6）：
+      
+          *  命令操作：`scalar els6= -coef6(2)/(x_mean*y_mean)`
+
+  
+```{r mean6,message=F,echo=FALSE,fig.cap="得到Y和X的均值"}
+library(knitr)
+include_graphics(path = "picture/lab3-model-function/mean6.png")
+```
+ 
+```{r elasticity6,message=F,echo=FALSE,fig.cap="得到Y对X的平均弹性"}
+library(knitr)
+include_graphics(path = "picture/lab3-model-function/elasticity6.png")
+```
+
+
+
+    

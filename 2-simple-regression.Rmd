@@ -1,0 +1,608 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 2 一元线性回归"
+author: "胡华平"
+date: "2018/3/5"
+output: 
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    keep_tex: true
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+```{r global_options, include=FALSE,message=FALSE,}
+knitr::opts_chunk$set(out.height ='4in',fig.align='center') # Places figures on their own pages
+```
+
+```{r setup, include=FALSE,echo=FALSE,eval=FALSE}
+install.packages("yaml")
+library("yaml")
+yaml::yaml.load(
+'output:
+  pdf_document:
+    latex_engine: xelatex')
+```
+
+# 实验目的及要求
+
+*  **目的**：熟悉一元回归建模和分析的基本原理。
+*  **要求**：熟练利用EViews软件进行一元回归分析，并进行计量经济检验；能快速看懂eviews分析报告，并理解报告内容的内部关系。
+
+# 实验原理
+*  经济建模要点
+*  参数估计
+*  参数推断
+*  拟合优度（判定系数）
+*  模型检验（经济学检验、统计学检验_t检验和F检验）
+
+
+# 实验内容
+
+## 实验方案设计
+*  一元建模准备
+*  一元分析操作
+*  一元回归报告解读
+
+## 实验背景——蒙特卡洛模拟数值实验
+
+上机数据文件下图 \@ref(fig:data)
+```{r data,message=F,echo=FALSE, out.width ='80%',fig.cap="datafile"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/data-show.png")
+```
+注意：  
+
+*  所有同学的$X$数据(收入$I$)都一样！  
+*  每个同学的$Y$数据(消费$C$)都不一样！  
+*  请下载数据表后，找到自己的两列，并进行Excel预处理(以便导入到Eviews!)  
+
+  如果消费和收入之间可以构造如下一元线性回归模型：
+\[Y_i=\hat{\beta}_1+\hat{\beta}_2X_i+e_i \]
+\[\hat{Y}_i=\hat{\beta}_1+\hat{\beta}_2X_i\]
+
+请回答如下问题：
+  
+A) 在Eviews中对模型进行计算（手动计算），要求：
+        
+    1. 将数据导入Eviews，并计算出$\bar{X}$、$\bar{Y}$、$X^2$、$Y^2$、$XY$，以及$x$、$y$、$x^2$、$y^2$、$xy$，并以Group形式保存并截图过来。
+  
+    1. 根据所给数据，计算直线回归方程的回归系数$\hat{\beta}_1$、$\hat{\beta}_2$（写出公式、主要计算过程和结果）。
+  
+    3. 分别写出样本回归方程（SRF）和样本回归模型（SRM）（根据计算结果写出实际方程和模型）。
+  
+    4. 计算回归误差方差（$\hat{\sigma}^2$）其标准差 (以及$\hat{\sigma}$)。（写出公式、主要计算过程和结果）。
+  
+    5. 计算得到回归截距系数的样本方差 ($S_{\hat{\beta}_1}^2$)及其样本标准差( $S_{\hat{\beta}_1}$)；计算回归斜率系数的样本方差($S_{\hat{\beta}_2}^2$)及其样本标准差( $S_{\hat{\beta}_2}$)。（写出公式及主要计算结果）。
+  
+    6. 计算得到两个模型的平方和分解式（$TSS$、$ESS$、$RSS$）及其相对应的自由度（$df_{TSS}$，$df_{ESS}$，$df_{RSS}$ ），并写出方差分析表（**ANOV** table）。
+  
+    7. 计算得到模型的样本相关系数$r$ ，以及判定系数$r^2$，并比较相关系数与判定系数的关系（数量关系）。（写出公式及主要计算过程）。
+  
+    8. 计算两个模型回归系数的样本t值($t_{\hat{\beta}_2}^\ast$和$t_{\hat{\beta}_1}^\ast$)。
+  
+    9. 用eviews命令计算得到理论t值（$t_{\alpha/2}\left(df\right) =t_{\alpha/2}\left(n-2\right)$，给定$\alpha=0.1$ ），并对回归系数显著性进行假设检验。
+  
+    10. 计算两个模型回归系数的样本F值（ $F_\ast$）
+  
+    11. 用eviews命令计算得到理论F值（ $F_\alpha(df_1,df_2)=F_\alpha(df_{ESS},df_{RSS})$，给定$\alpha=0.1$ ），并对模型整体显著性进行假设检验。
+  
+    12. 给定样本外的$X_0=280$ ，计算预测值$\hat{Y}_0$ 。
+  
+    13. 计算均值预测下的样本标准差$S_{(\hat{Y}_0)}$。
+
+    14. 计算均值预测的置信区间$\hat{Y}_0-t_{\alpha/2}(n-2)\cdot S_{\hat{Y}_0}\leq E(Y\mid X=X_0)\leq \hat{Y}_0+t_{\alpha/2}(n-2)\cdot S_{\hat{Y}_0}$
+  
+    15. 计算个值预测下的样本标准差$S_{(Y_0-\hat{Y}_0)}$。
+  
+    16. 计算个值预测的置信区间$\hat{Y}_0-t_{\alpha/2}(n-2)\cdot S_{Y_0-\hat{Y}_0}\leq E(Y\mid X=X_0)\leq \hat{Y}_0+t_{\alpha/2}(n-2)\cdot S_{Y_0-\hat{Y}_0}$
+
+         
+    
+B) 运用eviews菜单（Quick-->Estimate Equation），对上述模型进行回归分析，分别列出主要的回归报告，并比较与你在a题中手动计算的结果是否一致。
+
+c) 利用eviews将（X，Y）数据绘制散点图（scatter），并对残差序列绘制线图(line plot)。
+
+
+
+# 主要实验步骤
+
+## 变量命名规则
+
+* upr表示大写字母（uper）
+
+* lwr表示小写字母（lower）
+
+* avr表示均值(average)
+
+* sqr表示平方(square)
+
+* scl表示标量（scalar）
+
+* ser表示序列（series）
+
+* beta表示线性模型参数($\beta$ )
+
+* sigma表示随机干扰项$u_i$的真是标准差($\sigma$)
+
+* hat表示帽子符号(形如$\hat{\beta}$ )
+
+* bar表示上短横符号——均值符号(形如$\bar{X}$)
+
+* mns表示减号符号（形如$X-\bar{X}$）
+
+\blandscape
+
+## 操作步骤与Eviews命令
+
+### 导入数据
+   
+------------------------------------------------------------------------------------------------------
+计算变量       Eviews命名      Eviews命令                       公式参考
+-------------  --------------  -------------------------------  --------------------------------------
+$X$            x_upr           自己在eviews里重命名(rename)        NA
+   
+$Y$            y_uper          自己在eviews里重命名(rename)        NA
+------------------------------------------------------------------------------------------------------
+    
+Eviews具体操作过程见下图\@ref(fig:rename):
+
+我们可以发现：
+\newpage
+```{r rename,message=F,echo=FALSE,fig.cap="导入数据"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/1-rename.png")
+```
+\  
+
+\pagebreak
+### 计算几个重要统计量$\bar{X}$、$\bar{Y}$、$n$(标量**scalar**)
+    
+-----------------------------------------------------------------------------------------------------
+计算变量       Eviews命名   Eviews命令                        公式参考
+-------------  ------------ --------------------------------  --------------------------------------
+$\bar{X}$      x_avr_scl    scalar x_avr_scl=\@mean(x_upr)    $\frac{\sum_{X_i}}{n}$
+   
+$\bar{Y}$      y_avr_scl    scalar y_avr_scl=\@mean(y_upr)    $\frac{\sum_{Y_i}}{n}$
+   
+$n$            n            scalar n= \@obs(x_upr)            样本观测数（样本数）
+-----------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见下图：
+\  
+
+\pagebreak
+### 计算FF原序列(5个序列**series**)
+
+--------------------------------------------------------------------------------------------------------
+计算变量FF     Eviews命名    Eviews命令                          公式参考
+-------------  ------------- ----------------------------------  --------------------------------------
+$\bar{X_i}$    x_avr_ser     series x_avr_ser=\@mean(x_upr)          $\frac{\sum_{X_i}}{n}$
+   
+$\bar{Y_i}$    y_avr_ser     series y_avr_ser=\@mean(y_upr)          $\frac{\sum_{Y_i}}{n}$
+   
+$X_i^2$        x_upr_sqr     series x_upr_sqr=x_upr^2                $X_i^2$
+   
+$Y_i^2$        y_upr_sqr     series y_upr_sqr=y_upr^2                $Y_i^2$
+   
+$X_iY_i$       xy_upr        series xy_upr=x_upr*y_upr               $X_iY_i$
+--------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:FF-pre)和图\@ref(fig:FF-all):：
+\pagebreak
+```{r FF-pre,message=F,echo=FALSE,fig.cap="均值序列"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/2-FF-pre.png")
+```
+\  
+\newpage
+```{r FF-all,message=F,echo=FALSE,fig.cap="FF计算表"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/2-FF-all.png")
+```
+\  
+
+\newpage
+### 计算ff离差序列(序列**series**)
+
+---------------------------------------------------------------------------------------------------------
+计算变量ff     Eviews命名    Eviews命令                       公式参考
+-------------  ------------- -------------------------------  -------------------------------------------
+$x_i$          x_lwr         series x_lwr=\@mean(x_upr)       $(X_i-\bar{X})$
+   
+$y_i$          y_lwr         series y_lwr=\@mean(y_upr)       $(Y_i-\bar{Y})$
+   
+$x_i^2$        x_lwr_sqr     series x_upr_sqr=x_lwr^2         $x_i^2=(X_i-\bar{X})^2$
+   
+$y_i^2$        y_lwr_sqr     series y_lwr_sqr=y_lwr^2         $y_i^2=(Y_i-\bar{Y})^2$
+   
+$x_iy_i$       xy_lwr        series xy_lwr=x_lwr*y_lwr        $x_iy_i=(X_i-\bar{X})\ast (Y_i-\bar{Y})$
+---------------------------------------------------------------------------------------------------------
+Eviews具体操作过程见图\@ref(fig:ff-lwr)：
+\newpage
+```{r ff-lwr,message=F,echo=FALSE,fig.cap="ff计算表"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/3-ff-lwr-all.png")
+```
+\  
+
+\newpage    
+### 计算回归系数$\hat{\beta}_2$、$\hat{\beta}_1$(标量**scalar**):
+
+-------------------------------------------------------------------------------------------------------------------------------
+计算变量         Eviews命名   Eviews命令                                    公式参考
+---------------  ------------ --------------------------------------------  -------------------------------------
+$\hat{\beta}_2$  b2_hat       scalar b2_hat=\@sum(xy_lwr)/@sum(x_lwr_sqr)    $\hat{\beta}_2=\frac{\sum{x_iy_i}}{\sum{x_i^2}}$
+   
+$\hat{\beta}_1$  b1_hat       scalar b1_hat =y_avr_scl-b2_hat*x_avr_scl      $\hat{\beta}_1=\hat{Y}-\hat{\beta}_2\ast \hat{X}$
+                                                    
+-------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:beta-hat)：
+\newpage
+```{r beta-hat,message=F,echo=FALSE,fig.cap="回归系数的点估计值"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/4-beta.png")
+```
+\  
+
+\newpage
+### 计算回归预测值$\hat{Y_i}$及其离差$\hat{y_i}$序列(序列**series**)：
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量         Eviews命名   Eviews命令                            公式参考
+---------------  -----------  ------------------------------------- -------------------------------------------------
+$\hat{Y_i}$      y_upr_hat    series y_upr_hat=b1_hat+b2_hat*x_upr   $\hat{Y_i}=\hat{\beta}_1+\hat{\beta}_2\ast X_i$
+       
+$\hat{y_i}$      y_lwr_hat    series y_lwr_hat=y_upr_hat-y_avr_ser   $\hat{y}_i=\hat{Y}_i-\bar{Y}$
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:Y-forecast)：
+\newpage
+```{r Y-forecast,message=F,echo=FALSE,fig.cap="Y的回归估计值"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/5-forecast.png")
+```
+\  
+
+\newpage
+### 计算残差$e_i$及残差平方$e_i^2$序列(序列**series**):
+
+------------------------------------------------------------------------------------------------
+计算变量         Eviews命名   Eviews命令                     公式参考
+---------------  -----------  ------------------------------ --------------------------
+$e_i$            ei           series ei=y_upr- y_upr_hat      $e_i=Y_i-\hat{Y_i}$
+ 
+$e_i^2$          ei_sqr       series ei_sqr= ei^2             $e_i^2=(\hat{Y}_i-\bar{Y})^2$
+-------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:ei)：
+\newpage
+```{r ei,message=F,echo=FALSE,fig.cap="残差序列"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/6-ei.png")
+```
+\  
+
+\newpage
+### 计算回归误差方差$\hat{\sigma}^2$及回归标准差$\hat{\sigma}$(标量**scalar**)：
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量          Eviews命名     Eviews命令                             公式参考
+----------------  -------------  -------------------------------------- -----------------------------------------------
+$\hat{\sigma}^2$  sigma_hat2     scalar sigma_hat2=\@sum(ei_sqr)/(n-2)  $\hat{\sigma}^2=\frac{\sum{e_i^2}}{n-2}$
+ 
+$\hat{\sigma}$    sigma_hat      scalar sigma_hat= sigma_hat2^0.5       $\hat{\sigma}=\sqrt{\hat{\sigma}^2}$
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:sigma-hat)：
+\newpage
+```{r sigma-hat,message=F,echo=FALSE,fig.cap="回归误差方差及标准差"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/7-sigma.png")
+```
+\  
+
+\newpage
+### 计算斜率系数的样本方差($S_{\hat{\beta}_2}^2$、$S_{\hat{\beta}_1}^2$)和标准差($S_{\hat{\beta}_2}$、$S_{\hat{\beta}_1}$)(标量**scalar**)：
+
+--------------------------------------------------------------------------------------------------------------------------------------------------
+计算变量               Eviews命名      Eviews命令                                     公式参考
+---------------------  --------------  ---------------------------------------------- ------------------------------------------------------------
+$S_{\hat{\beta}_2}^2$  ss_b2h           scalar ss_b2h=sigma_hat2\@sum (x_lwr_sqr)       $S_{\hat{\beta}_2}^2=\frac{\hat{\sigma}^2}{\sum{x_i^2}}$
+ 
+$S_{\hat{\beta}_2}$    s_b2h            scalar s_b2h=ss_b2h^0.5                          $S_{\hat{\beta}_2}=\sqrt{S_{\hat{\beta}_2}^2}$
+
+$S_{\hat{\beta}_1}^2$  ss_b1h           scalar ss_b1h=1/n*ss_b2h*\@sum(x_upr_sqr)        $S_{\hat{\beta}_1}^2=\frac{\hat{\sigma}^2}{\sum{x_i^2}}
+                                                                                         \ast \frac{\sum_{X_i^2}}{n}$
+        
+$S_{\hat{\beta}_1}$    s_b1h           scalar s_b1h=ss_b1h^0.5                            $S_{\hat{\beta}_1}=\sqrt{S_{\hat{\beta}_1}^2}$
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:ss)：
+\newpage
+```{r ss,message=F,echo=FALSE,fig.cap="回归系数的样本方差和标准差"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/8-ss.png")
+```
+\  
+
+\newpage
+### 计算平方和分解(标量**scalar**)：
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量          Eviews命名     Eviews命令                          公式参考
+----------------  -------------  ----------------------------------- ----------------------------------------------------
+$TSS$             tss             scalar tss=\@sum(y_lwr_sqr)          $TSS=\sum{y_i^2}=\sum{(Y_i-\bar{Y})^2}$
+
+$RSS$             rss             scalar rss=\@sum(ei_sqr)             $RSS=\sum{e_i^2}=\sum{(Y_i-\hat{Y_i})^2}$
+
+$ESS$             ess             scalar ess=tss-rss                   $ESS=\sum{\hat{y}_i^2}=\sum{(\hat{Y_i}-\bar{Y})^2}$
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:sum-TSS)：
+\newpage
+```{r sum-TSS,message=F,echo=FALSE,fig.cap="平方和分解"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/9-sum-TSS.png")
+```
+\  
+
+\newpage
+### 计算平方和自由度(标量**scalar**)：
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量          Eviews命名     Eviews命令                          公式参考
+----------------  -------------  ----------------------------------- ----------------------------------------------------
+$df_{TSS}$        df_tss         scalar df_tss=n-1                   总是等于$(n-1)$，且$df_{TSS}=df_{RSS}+df_{ESS}$
+
+$df_{RSS}$        df_rss         scalar df_rss=n-2                   总是等于$(n-回归系数个数)$
+
+$df_{ESS}$        df_ess         scalar df_ess=1                     总是等于$(回归系数个数)$
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:dof)：
+\newpage
+```{r dof,message=F,echo=FALSE,fig.cap="平方和的自由度"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/10-df.png")
+```
+\  
+
+\newpage
+### 计算相关系数(标量**scalar**)：
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量          Eviews命名     Eviews命令                          公式参考
+----------------  -------------  ----------------------------------- ----------------------------------------------------
+$r$                 rs           scalar r=\@cor(x_upr,y_upr)         $r=\frac{Cov(X,Y)}{S_X\ast S_Y}=
+                                                                     \frac{\sum{(X_i-\bar{X})(Y_i-\bar{Y})}}
+                                                                     {\sqrt{\sum{(X_i-\bar{X}})^2\sum{(Y_i-\bar{Y})^2}}}$
+
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:corrl)：
+\newpage
+```{r corrl,message=F,echo=FALSE,fig.cap="相关系数"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/11-corrl.png")
+```
+\  
+
+\newpage
+### 计算判定系数$r^2$(标量**scalar**)：
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量          Eviews命名   Eviews命令                          公式参考
+----------------  -----------  ----------------------------------- ----------------------------------------------------
+$r^2$               r_sqr      scalar r_sqr=ess/tss                $r^2=\frac{ESS}{TSS}$
+
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:R2)：
+\newpage
+```{r R2,message=F,echo=FALSE,fig.cap="判定系数"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/12-R2-det.png")
+```
+\  
+
+\newpage
+### 计算回归系数的样本t值$t_{\hat{\beta}_2}^{\ast}$和$t_{\hat{\beta}_1}^{\ast}$(标量**scalar**)
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+计算变量                    Eviews命名     Eviews命令                         公式参考
+--------------------------  -------------  ---------------------------------- --------------------------------------------------------------------
+$t_{\hat{\beta}_2}^{\ast}$  t_str_b2h      scalar t_str_b2h =b2_hat/s_b2h      $t_{\hat{\beta}_2}^{\ast}=\frac{\hat{\beta}_2}{S_{\hat{\beta}_2}}$
+
+$t_{\hat{\beta}_1}^{\ast}$  t_str_b1h      scalar t_str_b1h =b1_hat/s_b1h      $t_{\hat{\beta}_1}^{\ast}=\frac{\hat{\beta}_1}{S_{\hat{\beta}_1}}$
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:t-star)：
+\newpage
+```{r t-star,message=F,echo=FALSE,fig.cap="样本t统计量"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/13-t-star.png")
+```
+\  
+
+\newpage
+### 计算理论t值（$t_{\alpha/2}(n-2)$，给定$\alpha=0.01$）(标量**scalar**)
+
+-----------------------------------------------------------------------------------------------------------------------
+计算变量                 Eviews命名      Eviews命令                          公式参考
+-----------------------  --------------  ----------------------------------- ----------------------------------------------
+$t_{(1-\alpha)/2}(df)$    t              scalar t =\@qtdist(0.95,n-2)       右侧正值$t=t_{(1-\alpha)/2}(n-2)$
+
+$t_{\alpha/2}(df)$        t              scalar t =\@qtdist(0.05,n-2)       左侧负值$t=t_{\alpha/2}(n-2)$
+-----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:t-value)：
+\newpage
+```{r t-value,echo=FALSE,fig.cap="查表理论t值"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/14-t-value.png")
+```
+\  
+
+\newpage
+### 计算样本F统计量（$F^\ast$）(标量**scalar**)
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+计算变量        Eviews命名       Eviews命令                                公式参考
+--------------  ---------------  ----------------------------------------  ------------------------------------------------------------------
+$F^\ast$          f_str          scalar f_str =(ess/df_ess)/(rss/df_rss)   $F^\ast={\frac{MSS_{ESS}}{MSS_{RSS}}=\frac{ESS/df_ESS}{RSS/df_RSS}}$
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:F-star)：
+\newpage
+```{r F-star,message=F,echo=FALSE,fig.cap="样本F统计量"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/15-F-str.png")
+```
+\  
+
+\newpage
+### 计算理论F值（$F_{(1-\alpha)}(df_{ESS},df_{RSS})$，给定$\alpha=0.01$）(标量**scalar**)
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+计算变量                    Eviews命名    Eviews命令                                公式参考
+--------------------------- ------------- ----------------------------------------  --------------------------------------------------
+$F_{(1-\alpha)}(df1,df2)$    f             scalar f =\@qfdist(0.9,df_ess,df_rss)     右侧大值:$f=F_{(1-\alpha)}(df_{ESS},df_{RSS})$
+
+$F_\alpha(df1,df2)$          f             scalar f =\@qfdist(0.01,df_ess,df_rss)    左侧小值:$f=F_\alpha(df_{ESS},df_{RSS})$
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:F-value)：
+\newpage
+```{r F-value,message=F,echo=FALSE,fig.cap="查表理论F值"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/16-F-value.png")
+```
+\  
+
+\newpage
+### 计算样本外预测值($\hat{Y}_0$)(标量**scalar**)
+
+---------------------------------------------------------------------------------------------------------------------
+计算变量       Eviews命名    Eviews命令                           公式参考
+-------------- ------------- -----------------------------------  --------------------------------------------------
+$X_0$          x0             scalar x0 =280                        给定$X_0=280$
+
+$\hat{Y}_0$    y0_hat         scalar y0_hat =b1_hat+b2_hat*x0       $\hat{Y_0}=\hat{\beta_1}+\hat{\beta}_2\ast{X_0}$
+----------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:forecast-out)：
+\newpage
+```{r forecast-out,message=F,echo=FALSE,fig.cap="样本外预测值"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/17-forecast-out.png")
+```
+\  
+
+\newpage
+### 计算均值预测的样本标准差$S_{\hat{Y}_0}$ (标量**scalar**)
+
+---------------------------------------------------------------------------------------------------------------------------------
+计算变量         Eviews命名     Eviews命令                                      公式参考
+---------------- -------------- ----------------------------------------------  -------------------------------------------------
+$S_{\hat{Y}_0}$      s_y0h      scalar s_y0h=(sigma_hat2*(1/n+(x0-x_avr_scl)    $S_{\hat{Y}_0}=\sqrt{\hat{\sigma}^2\left(  
+                                \^2/\@sum(x_lwr_sqr)))\^0.5                     \frac{1}{n}+\frac{(X_0-\bar{X})}{\sum{x_i^2}}                                                                                                                             \right)}$
+--------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:S-exp)：
+\newpage
+```{r S-exp,message=F,echo=FALSE,fig.cap="均值预测值的样本标准差"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/18-forecast-S-y0.png")
+```
+\  
+
+\newpage
+###  计算均值预测的置信区间(标量**scalar**)
+
+-------------------------------------------------------------------------------------------------------------------------
+计算变量            Eviews命名     Eviews命令                            公式参考
+------------------- -------------- ------------------------------------  -------------------------------------------------
+$E(Y\mid X=X_0)_左$  y_exp_lft     scalar y_exp_lft= y0_hat-t *s_y0h     左侧：$\hat{Y}_0-t_{\alpha/2}(df)*S_{\hat{Y}_0}$
+
+$E(Y\mid X=X_0)_右$  y_exp_rht     scalar y_exp_rht= y0_hat+t *s_y0h     右侧：$\hat{Y}_0+t_{\alpha/2}(df)*S_{\hat{Y}_0}$
+-------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:interval-Y0-exp)：
+\newpage
+```{r interval-Y0-exp,message=F,echo=FALSE,fig.cap="均值区间预测",fig.align='center'}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/19-forecast-Y0-exp.png")
+```
+\  
+
+\newpage
+###  计算个值预测的样本标准差$S_{Y_0-\hat{Y}_0}$(标量**scalar**)
+
+--------------------------------------------------------------------------------------------------------------------------------------
+计算变量             Eviews命名    Eviews命令                                         公式参考
+-------------------- ------------- -------------------------------------------------  -------------------------------------------------
+$S_{Y_0-\hat{Y}_0}$   s_ymy        scalar s_ymy = (sigma_hat2*(1+1/n+(x0-x_avr_scl)    $S_{Y_0-\hat{Y}_0}=\sqrt{\hat{\sigma}^2\left(1+ 
+                                    \^2/@sum(x_lwr_sqr)))\^0.5                          \frac{1}{n}+\frac{(X_0-\bar{X})}{\sum{x_i^2}}                                                                                                                                       \right)}$
+--------------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:S-y0myh)：
+\newpage
+```{r S-y0myh,message=F,echo=FALSE,fig.cap="个值预测的样本标准差"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/20-forecast-S-y0myh.png")
+```
+\  
+
+\newpage
+### 计算个值预测的置信区间(标量**scalar**)
+
+-----------------------------------------------------------------------------------------------------------------------------------
+计算变量              Eviews命名    Eviews命令                            公式参考
+--------------------- ------------- ------------------------------------  ---------------------------------------------------------
+$(Y_0\mid X=X_0)_左$  y_ind_lft     scalar y_ind_lft= y0_hat-t*s_ymh      左侧：$\hat{Y}_0-t_{(1-\alpha/2)}(df)*S_{Y_0-\hat{Y}_0}$
+
+$(Y_0\mid X=X_0)_右$  y_ind_rht     scalar y_ind_rht= y0_hat+t*s_ymy      右侧：$\hat{Y}_0+t_{(1-\alpha/2)}(df)*S_{Y_0-\hat{Y}_0}$
+-----------------------------------------------------------------------------------------------------------------------------------
+
+Eviews具体操作过程见图\@ref(fig:interval-Y0-ind)：
+\newpage
+```{r interval-Y0-ind,message=F,echo=FALSE,fig.cap="个值预测的置信区间"}
+library(knitr)
+include_graphics(path = "picture/lab2-simple-regression/21-forecast-Y0-ind.png")
+```
+
+\elandscape
+
+# 作业提示
+
+

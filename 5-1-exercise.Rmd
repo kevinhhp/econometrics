@@ -1,0 +1,302 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 5 多重共线性的诊断和矫正"
+author: "胡华平"
+date: "2018/3/27"
+output: 
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: true
+    toc_depth: 3
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    keep_tex: true
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+```{r global_options, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(out.height = '8in',fig.align='center') # Places figures on their own pages
+options(digits=4,scipen=999)
+```
+
+```{r setup, include=FALSE,echo=FALSE,eval=FALSE}
+install.packages("yaml")
+library("yaml")
+yaml::yaml.load(
+'output:
+  pdf_document:
+    latex_engine: xelatex')
+```
+    
+\newpage
+
+# 实验目的及要求
+
+*  **目的**：掌握多重共线性的检验与处理方法。
+*  **要求**：在老师指导下完成计量经济模型的多重共线性检验，并对存在多重共线性的模型进行修正，最终得到正确的分析结果。
+
+
+# 实验原理
+
+线性回归模型的解释变量不满足相互独立的基本假设前提下，如果模型的解释变量存在多重共线性，将导致最小二乘法得到的模型参数估计量非有效且方差变大，参数估计量经济含义不合理等。
+
+## 多重共线性诊断的经验方法：
+a. 观察主回归方程分析报告：建立主回归方程，分析回归报告结果。
+    * 主回归分析报告的$R^2$值高（大于0.8），$F^{\ast}$检验显著，但不显著的$t^\ast$检验较多（多于回归系数个数的一半及以上）
+a. 矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵。
+    * 相关系数矩阵发现高度线性相关（相关系数大于0.8）
+    * 散点图矩阵发现高度线性相关的数据分布模式
+a. 分析辅助回归方程：首先构建主回归方程，然后分别构建回归元之间的辅助回归方程。
+    * 辅助回归方程的判定系数$R^2_j$大于主回归方程的判定系数$R^2$
+    * 辅助回归方程的方差膨胀因子：$VIF_j\in[10,100]$表明中度多重共线性；$VIF_j\geq{100}$表明严重多重共线性
+    * 辅助回归方程的的容忍度：$TOL_j\in[0.01,0.1]$表明中度多重共线性；$TOL_j\leq{0.01}$表明严重多重共线性
+a. 主成分分析法(principal components)：计算特征值(eigenvalues)，进而得到病态数($k$)和病态指数$CI=\sqrt{k}$
+    * 病态数：$k \in[100,1000]$表明中度多重共线性；$k \geq{1000}$表明严重多重共线性
+    * 病态指数：$CI \in[10,30]$表明中度多重共线性；$CI \geq{30}$表明严重多重共线性
+
+## 多重共线性修正方法：
+a. 简单剔除变量法：
+    * 依据经济学和实践经验观察，进行变量甄选或变量变换
+a. 逐步回归法：包括前向逐步回归(forward stepwise)和后向逐步回归(backward stepwise)
+    * p值判别法：$p\in[0.1,0.05)$(比较显著)；$p\in[0.05,0.01)$(比较显著)；$p\leq 0.01$(极其显著)
+    * $t^{\ast}$值判别法：2t法则
+a. 补充新数据（有时候有用！）
+    * 由于多重共线性是一个样本特性，故有可能在关于同样变量的另一样本中共线性没有第一个样本那么严重
+a. 多项式回归模型中离差形式或正交多项式(orthogonal polynomials)以降低共线性的影响
+    * 多项式回归模型的一个特点是解释变量以不同的幂出现，从而容易导致多重共线性
+a. 拯救多重共线性的其他方法
+    + 脊回归(ridge regression) 常被用来"解决"多重共线性问题。
+    + 主成分分析法
+        + 先根据主成分分析确定主成分个数(看累积解释百分比)
+        + 再用主成分得分（scoring）序列进行回归分析
+
+
+\newpage
+
+# 实验内容
+
+ 
+```{r create_data,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+set.seed(123)
+library("knitr")
+# get students data
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+s<-dim(students)[1]
+# get case data
+ready<-readxl::read_xlsx(path = "data/Lab5-exercise-wage-policy.xlsx",range="A1:J36")
+n<-dim(ready)[1]
+# create random Y data
+rdm<-matrix(rnorm(s*n),nrow=s) #GET RANDOM NUMBERS
+ready_rdm<-rdm+matrix(rep(t(ready[,2]),s),nrow=s,byrow=TRUE)
+ready_rdm<-format(ready_rdm,digits = 2,nsmall = 2)
+# get X data
+x_data<-ready[,c(-1,-2)]
+# get all exercise data table
+table_exercise<-as.matrix(cbind(x_data,t(ready_rdm)))
+# get students data table
+table_students<-cbind(matrix(rep(names(x_data),dim(students)[2]),nrow=dim(students)[2],byrow=TRUE),t(students))
+# conbine students data & fixed X data & random Y data
+table_lab<-as.data.frame(rbind(table_students,table_exercise))
+name_row<-c(names(students),paste0("n",1:n))
+name_col<-c(names(x_data),paste0("Ydata",1:s))
+dimnames(table_lab)<-list(name_row,name_col)
+# write table for lab exercise
+write.csv(table_lab,"data/Lab5-exercise-wage-policy-lab.csv")
+```
+
+
+```{r load-data,message=F,echo=FALSE,include=FALSE}
+math_matrix<-readxl::read_xlsx(path = "data/lab4-matrix-math.xlsx")
+table_demo<-readxl::read_xlsx(path = "data/Lab5-longley-short-origin.xlsx",range="A1:H17")
+# give the exersice variable data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+# give the eviews name data
+var_name<-data.frame(t(math_matrix$name_eviews))
+names(var_name)<-math_matrix$name_eng
+# give the math data
+var_math<-data.frame(t(math_matrix$math))
+names(var_math)<-math_matrix$name_eng
+
+```
+
+
+
+\newpage
+
+## 实验背景——郎利数据(class data)
+
+**就业情况的郎利数据**：表\@ref(tab:longley-long)给出美国1947-1961年间就业情况及主要影响因素的数据表。
+
+```{r longley-long,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+library("knitr")
+
+kable(table_demo,caption = paste0("美国劳动力市场的郎利调研数据","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-show)：
+
+```{r label-show,message=F,echo=FALSE,results='asis'}
+library("knitr")
+label<-c("年份","就业人数(打)","消费价格指数","名义GNP","失业人数","军队人数","14岁以上的非机构人口数","时间趋势")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+\  
+
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+Y_t=\hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t}
+(\#eq:model-longley)
+\end{equation}
+
+请回答如下问题: 
+
+1. 根据回归模型\@ref(eq:model-longley)，写出总体回归模型（PRM），并对参数的理论预期（符号、大小、关系）进行说明。  
+    答：  
+    PRM：  
+    参数预期：   
+
+1. 利用Eviews对样本回归模型\@ref(eq:model-longley)进行回归分析（将报告截图过来，并写出相应的简要报告形式——三行式或四行式）。参数估计结果符合你的理论预期么？  
+    答：  
+    报告截图：  
+    简要报告（三行式或四行式）：  
+    参数估计结果是否符合你前面的理论预期：  
+
+2. 数据中存在多重共线性的证据吗?（请以此按照下列方法进行诊断）：
+
+    a. 根据上题中主回归报告结果，观察t检验，判定系数，F检验的关系，请你得出关于多重共线性的初步结论。  
+       答：  
+
+    a. 利用Eviews绘制矩阵散点图(matrix scatter)（截图过来），请你得出关于多重共线性的初步结论。  
+       答：  
+
+    a. 利用Eviews得到简单相关系数矩阵（截图过来），请你得出关于多重共线性的初步结论。  
+       答:  
+
+    a. 利用Eviews进行辅助回归诊断（完成下表，并将8个辅助回归结果依次截图过来），请你得出关于多重共线性的初步结论。  
+       答： 
+
+-------------------------------------------------------------------------
+回归类型    模型设置                                    判定系数$R^2=$
+----------- ------------------------------------------ ----------------
+ 主回归      `r table_label$variable[2]`    
+             对全部$X_i$                
+                                  
+辅助回归     `r table_label$variable[3]` 
+             对其他全部$X_i$    
+
+辅助回归     `r table_label$variable[4]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[5]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[6]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[7]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[8]` 
+             对其他全部$X_i$   
+
+------------------------------------------------------------------------
+
+Table: 主回归和辅助回归的判定系数计算
+
+<!-- end of list -->   
+
+  e. 请按下列要求完成下表和提问：  
+      * 利用上表结果，计算方差膨胀因子和容忍度指标；
+      * 利用Eviews菜单，对主模型\@ref(eq:model-longley)操作，得到方差膨胀因子(截图并列出结果到下表中)
+      * 根据上述结果，请你得出关于多重共线性的初步结论。  
+        答：  
+
+<!-- end of list -->
+        
+-----------------------------------------------------------------------------------------------------
+辅助模型                                           容忍度     辅助模型   主模型
+设置                                               $TOL_j$    $VIF_j$    VIF
+-------------------------------------------------  ---------- ---------- -------------
+`r table_label$variable[3]` 
+对其他全部$X_i$    
+
+`r table_label$variable[4]` 
+对其他全部$X_i$   
+
+`r table_label$variable[5]` 
+对其他全部$X_i$   
+
+`r table_label$variable[6]` 
+对其他全部$X_i$   
+
+`r table_label$variable[7]` 
+对其他全部$X_i$   
+
+`r table_label$variable[8]` 
+对其他全部$X_i$   
+------------------------------------------------------------------------------------------------------
+
+Table: 方差膨胀因子VIF和容忍度TOL的计算与比较
+
+<!-- end of list -->
+
+  f. 按下列要求计算病态数(K)和病态指数（CI）：
+      * 利用Eviews对7个自变量进行主成分(principal components)分析（将结果截图过来）
+      * 得到特征值(eigenvalues)向量（将结果截图过来）
+      * 计算病态数(K)和病态指数（CI）（写出计算公式和计算结果）
+      * 根据上述结果，请你得出关于多重共线性的初步结论。  
+      答：  
+3. 若存在多重共线性问题，那你会采用什么补救措施(如果有的话)?
+    a. 简单剔除变量法——经济学和实践观察法。请写明剔除变量的理由，并将纠正后模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？  
+    答：  
+    a. 简单剔除变量法——逐步回归法。将逐步回归后模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？  
+    答：  
+    a. 主成分法(principal components)。将因子回归模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？（此题选作）  
+    答：  
+
+
+\  
+【本次实验题目完毕啦！！】
+
+\newpage
+

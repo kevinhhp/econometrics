@@ -1,0 +1,833 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 5 多重共线性的诊断和矫正"
+author: "胡华平"
+date: "2018/3/27"
+output: 
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    keep_tex: true
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: true
+    toc_depth: 3
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+```{r global_options, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(out.width = '8in',fig.align='center') # Places figures on their own pages
+options(digits=4,scipen=999)
+```
+
+```{r setup, include=FALSE,echo=FALSE,eval=FALSE}
+install.packages("yaml")
+library("yaml")
+yaml::yaml.load(
+'output:
+  pdf_document:
+    latex_engine: xelatex')
+```
+    
+\newpage
+
+# 实验目的及要求
+
+*  **目的**：掌握多重共线性的检验与处理方法。
+*  **要求**：在老师指导下完成计量经济模型的多重共线性检验，并对存在多重共线性的模型进行修正，最终得到正确的分析结果。
+
+
+# 实验原理
+
+线性回归模型的解释变量不满足相互独立的基本假设前提下，如果模型的解释变量存在多重共线性，将导致最小二乘法得到的模型参数估计量非有效且方差变大，参数估计量经济含义不合理等。
+
+## 多重共线性诊断的经验方法：
+a. 观察主回归方程分析报告：建立主回归方程，分析回归报告结果。
+    * 主回归分析报告的$R^2$值高（大于0.8），$F^{\ast}$检验显著，但不显著的$t^\ast$检验较多（多于回归系数个数的一半及以上）
+a. 矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵。
+    * 相关系数矩阵发现高度线性相关（相关系数大于0.8）
+    * 散点图矩阵发现高度线性相关的数据分布模式
+a. 分析辅助回归方程：首先构建主回归方程，然后分别构建回归元之间的辅助回归方程。
+    * 辅助回归方程的判定系数$R^2_j$大于主回归方程的判定系数$R^2$
+    * 辅助回归方程的方差膨胀因子：$VIF_j\in[10,100]$表明中度多重共线性；$VIF_j\geq{100}$表明严重多重共线性
+    * 辅助回归方程的的容忍度：$TOL_j\in[0.01,0.1]$表明中度多重共线性；$TOL_j\leq{0.01}$表明严重多重共线性
+a. 主成分分析法(principal components)：计算特征值(eigenvalues)，进而得到病态数($k$)和病态指数$CI=\sqrt{k}$
+    * 病态数：$k \in[100,1000]$表明中度多重共线性；$k \geq{1000}$表明严重多重共线性
+    * 病态指数：$CI \in[10,30]$表明中度多重共线性；$CI \geq{30}$表明严重多重共线性
+
+## 多重共线性修正方法：
+a. 简单剔除变量法：
+    * 依据经济学和实践经验观察，进行变量甄选或变量变换
+a. 逐步回归法：包括前向逐步回归(forward stepwise)和后向逐步回归(backward stepwise)
+    * p值判别法：$p\in[0.1,0.05)$(比较显著)；$p\in[0.05,0.01)$(比较显著)；$p\leq 0.01$(极其显著)
+    * $t^{\ast}$值判别法：2t法则
+a. 补充新数据（有时候有用！）
+    * 由于多重共线性是一个样本特性，故有可能在关于同样变量的另一样本中共线性没有第一个样本那么严重
+a. 多项式回归模型中离差形式或正交多项式(orthogonal polynomials)以降低共线性的影响
+    * 多项式回归模型的一个特点是解释变量以不同的幂出现，从而容易导致多重共线性
+a. 拯救多重共线性的其他方法
+    + 脊回归(ridge regression) 常被用来"解决"多重共线性问题。
+    + 主成分分析法
+        + 先根据主成分分析确定主成分个数(看累积解释百分比)
+        + 再用主成分得分（scoring）序列进行回归分析
+
+
+\newpage
+
+# 实验内容
+
+ 
+```{r create_data,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+set.seed(123)
+library("knitr")
+# get students data
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+s<-dim(students)[1]
+# get case data
+ready<-readxl::read_xlsx(path = "data/Lab5-longley-long-origin.xlsx",range="A1:H48")
+n<-dim(ready)[1]
+# create random Y data
+rdm<-matrix(rnorm(s*n),nrow=s) #GET RANDOM NUMBERS
+ready_rdm<-rdm+matrix(rep(t(ready[,2]),s),nrow=s,byrow=TRUE)
+ready_rdm<-format(ready_rdm,digits = 2,nsmall = 2)
+# get X data
+x_data<-ready[,c(-1,-2)]
+# get all exercise data table
+table_exercise<-as.matrix(cbind(x_data,t(ready_rdm)))
+# get students data table
+table_students<-cbind(matrix(rep(names(x_data),dim(students)[2]),nrow=dim(students)[2],byrow=TRUE),t(students))
+# conbine students data & fixed X data & random Y data
+table_lab<-as.data.frame(rbind(table_students,table_exercise))
+name_row<-c(names(students),paste0("n",1:n))
+name_col<-c(names(x_data),paste0("Ydata",1:s))
+dimnames(table_lab)<-list(name_row,name_col)
+# write table for lab exercise
+write.csv(table_lab,"data/Lab5-longley-long-lab.csv")
+```
+
+
+```{r load-data,message=F,echo=FALSE,include=FALSE}
+math_matrix<-readxl::read_xlsx(path = "data/lab4-matrix-math.xlsx")
+table_demo<-readxl::read_xlsx(path = "data/Lab5-longley-short-origin.xlsx",range="A1:H17")
+# give the exersice variable data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+# give the eviews name data
+var_name<-data.frame(t(math_matrix$name_eviews))
+names(var_name)<-math_matrix$name_eng
+# give the math data
+var_math<-data.frame(t(math_matrix$math))
+names(var_math)<-math_matrix$name_eng
+
+```
+
+## 实验方案设计
+
+1. 采用最小二乘法建立主回归模型
+2. 侦查模型是否存在多重共线性：
+    a. 观察主回归方程分析报告：建立主回归方程，分析回归报告结果。
+        * 主回归分析报告的$R^2$值高（大于0.8），$F^{\ast}$检验显著，但不显著的$t^\ast$检验较多（多于回归系数个数的一半及以上）
+    a. 矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵。
+        * 相关系数矩阵发现高度线性相关（相关系数大于0.8）
+        * 散点图矩阵发现高度线性相关的数据分布模式
+    a. 分析辅助回归方程：首先构建主回归方程，然后分别构建回归元之间的辅助回归方程。
+        * 辅助回归方程的判定系数$R^2_j$大于主回归方程的判定系数$R^2$
+        * 辅助回归方程的方差膨胀因子：$VIF_j\in[10,100]$表明中度多重共线性；$VIF_j\geq{100}$表明严重多重共线性
+        * 辅助回归方程的的容忍度：$TOL_j\in[0.01,0.1]$表明中度多重共线性；$TOL_j\leq{0.01}$表明严重多重共线性
+    a. 主成分分析法(principal components)：计算特征值(eigenvalues)，进而得到病态数($K$)和病态指数$CI=\sqrt{k}$
+        * 病态数：$K \in[100,1000]$表明中度多重共线性；$K \geq{1000}$表明严重多重共线性
+        * 病态指数：$CI \in[10,30]$表明中度多重共线性；$CI \geq{30}$表明严重多重共线性 
+3. 根据上述对多重共线性的诊断，对模型进行合理修正：
+    a. 简单剔除变量法：
+        * 依据经济学和实践经验观察，进行变量甄选或变量变换
+    a. 逐步回归法：包括前向逐步回归(forward stepwise)和后向逐步回归(backward stepwise)
+        * p值判别法：$p\in[0.1,0.05)$(比较显著)；$p\in[0.05,0.01)$(比较显著)；$p\leq 0.01$(极其显著)
+        * $t^{\ast}$值判别法：2t法则
+    a. 补充新数据（有时候有用！）
+        * 由于多重共线性是一个样本特性，故有可能在关于同样变量的另一样本中共线性没有第一个样本那么严重
+    a. 多项式回归模型中离差形式或正交多项式(orthogonal polynomials)以降低共线性的影响
+        * 多项式回归模型的一个特点是解释变量以不同的幂出现，从而容易导致多重共线性
+    a. 拯救多重共线性的其他方法
+        + 脊回归(ridge regression) 常被用来"解决"多重共线性问题。
+        + 主成分分析法
+            + 先根据主成分分析确定主成分个数(看累积解释百分比)
+            + 再用主成分得分（scoring）序列进行回归分析
+
+\newpage
+
+## 实验背景——郎利数据(class data)
+
+**就业情况的郎利数据**：表\@ref(tab:longley-long)给出美国1947-1961年间就业情况及主要影响因素的数据表。
+
+```{r longley-long,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+library("knitr")
+
+kable(table_demo,caption = paste0("美国劳动力市场的郎利调研数据","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-show)：
+
+```{r label-show,message=F,echo=FALSE,results='asis'}
+library("knitr")
+label<-c("年份","就业人数(打)","消费价格指数","名义GNP","失业人数","军队人数","14岁以上的非机构人口数","时间趋势")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+\  
+
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+Y_t=\hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t}
+(\#eq:model-longley)
+\end{equation}
+
+请回答如下问题: 
+
+1. 根据回归模型\@ref(eq:model-longley)，写出总体回归模型（PRM），并对参数的理论预期（符号、大小、关系）进行说明。  
+    答：  
+    PRM：  
+    参数预期：   
+
+1. 利用Eviews对样本回归模型\@ref(eq:model-longley)进行回归分析（将报告截图过来，并写出相应的简要报告形式——三行式或四行式）。参数估计结果符合你的理论预期么？  
+    答：  
+    报告截图：  
+    简要报告（三行式或四行式）：  
+    参数估计结果是否符合你前面的理论预期：  
+
+2. 数据中存在多重共线性的证据吗?（请以此按照下列方法进行诊断）：
+
+    a. 根据上题中主回归报告结果，观察t检验，判定系数，F检验的关系，请你得出关于多重共线性的初步结论。  
+       答：  
+
+    a. 利用Eviews绘制矩阵散点图(matrix scatter)（截图过来），请你得出关于多重共线性的初步结论。  
+       答：  
+
+    a. 利用Eviews得到简单相关系数矩阵（截图过来），请你得出关于多重共线性的初步结论。  
+       答:  
+
+    a. 利用Eviews进行辅助回归诊断（完成下表，并将8个辅助回归结果依次截图过来），请你得出关于多重共线性的初步结论。  
+       答： 
+
+-------------------------------------------------------------------------
+回归类型    模型设置                                    判定系数$R^2=$
+----------- ------------------------------------------ ----------------
+ 主回归      `r table_label$variable[2]`    
+             对全部$X_i$                
+                                  
+辅助回归     `r table_label$variable[3]` 
+             对其他全部$X_i$    
+
+辅助回归     `r table_label$variable[4]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[5]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[6]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[7]` 
+             对其他全部$X_i$   
+
+辅助回归     `r table_label$variable[8]` 
+             对其他全部$X_i$   
+
+------------------------------------------------------------------------
+
+Table: 主回归和辅助回归的判定系数计算
+
+<!-- end of list -->   
+
+  e. 请按下列要求完成下表和提问：  
+      * 利用上表结果，计算方差膨胀因子和容忍度指标；
+      * 利用Eviews菜单，对主模型\@ref(eq:model-longley)操作，得到方差膨胀因子(截图并列出结果到下表中)
+      * 根据上述结果，请你得出关于多重共线性的初步结论。  
+        答：  
+
+<!-- end of list -->
+        
+-----------------------------------------------------------------------------------------------------
+辅助模型                                           容忍度     辅助模型   主模型
+设置                                               $TOL_j$    $VIF_j$    VIF
+-------------------------------------------------  ---------- ---------- -------------
+`r table_label$variable[3]` 
+对其他全部$X_i$    
+
+`r table_label$variable[4]` 
+对其他全部$X_i$   
+
+`r table_label$variable[5]` 
+对其他全部$X_i$   
+
+`r table_label$variable[6]` 
+对其他全部$X_i$   
+
+`r table_label$variable[7]` 
+对其他全部$X_i$   
+
+`r table_label$variable[8]` 
+对其他全部$X_i$   
+------------------------------------------------------------------------------------------------------
+
+Table: 方差膨胀因子VIF和容忍度TOL的计算与比较
+
+<!-- end of list -->
+
+  f. 按下列要求计算病态数(K)和病态指数（CI）：
+      * 利用Eviews对7个自变量进行主成分(principal components)分析（将结果截图过来）
+      * 得到特征值(eigenvalues)向量（将结果截图过来）
+      * 计算病态数(K)和病态指数（CI）（写出计算公式和计算结果）
+      * 根据上述结果，请你得出关于多重共线性的初步结论。  
+      答：  
+3. 若存在多重共线性问题，那你会采用什么补救措施(如果有的话)?
+    a. 简单剔除变量法——经济学和实践观察法。请写明剔除变量的理由，并将纠正后模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？  
+    答：  
+    a. 简单剔除变量法——逐步回归法。将逐步回归后模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？  
+    答：  
+    a. 主成分法(principal components)。将因子回归模型的Eviews结果截图过来，新模型减弱了多重共线性问题吗？（此题选作）  
+    答：  
+
+
+\  
+【本次实验题目完毕啦！！】
+
+\newpage
+
+# 主要实验步骤 
+
+##  导入数据并进行预处理
+
+*  目标：
+*  思路：
+*  新建Eviews工作文件（workfile）
+    *    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y
+    *    Eviews菜单操作：
+         a. 依次操作：File$\Rightarrow$New$\Rightarrow$Workfile
+         b. 进行workfile create引导设置：
+             + workfile structure type: `unstructured/undatede`
+             + data range：`r n`
+             + workfile names(optional):
+                 - WF: `longley`（**建议命名**）
+                 - Page: `employee`（**建议命名**）  
+
+
+*  导入数据
+    *  提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y数据（X数据所有同学都一样）  
+    *  菜单操作（Excel和Eviews）：  
+        a.    Excel找到数据。Excel表格中仅保留自己需要的数据（`r names(table_demo)`）
+        c.    Eviews导入数据。File$\Rightarrow$Import$\Rightarrow$Import From File：`d:/econometrics/data/Lab5-longley-long-lab.csv`
+
+##  采用最小二乘法建立主回归模型
+
+```{r model-main,echo=FALSE}
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+exp_main<-formula(paste(var_y, '~',paste(var_x,collapse = '+'),sep=' '))
+model_main<-lm(formula=exp_main,data=table_demo)
+
+report_main<-summary(model_main)
+f_test<-report_main$fstatistic
+mat_coef<-report_main$coefficients
+t_test<-mat_coef[,3:4]
+t_no<-t_test[which(t_test[,2]>0.1),]
+```
+
+*  目标：
+*  思路：
+*  提示：主回归模型为
+
+$$Y_t=\hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t}$$
+
+*  Eviews菜单操作：
+    1)  依次选择$\Rightarrow$Quick$\Rightarrow$Estimation Equation  
+    2)  引导设置Equation Estimation$\Rightarrow$specification  
+        a. Equation specification：输入命令  `r paste(table_label$variable[2],'c',paste(table_label$variable[c(-1,-2)],sep='',collapse = ' '),sep=' ')`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+    3)  模型命名：建议为`eq_m0`  
+    
+        主回归分析结果见图\@ref(fig:fig-main)： 
+        
+```{r fig-main,message=F,echo=FALSE,fig.cap="主回归模型Eviews建模操作"}
+include_graphics(path = "picture/lab5-multilinearity/1-main-model.png")
+```
+    
+
+##  侦查模型是否存在多重共线性：
+
+### 观察主回归方程分析报告，分析回归报告结果，得出初步结论。
+*  目标：观察$t^{\ast}$检验，判定系数$R^2$，$F^{\ast}$检验的关系
+*  思路：
+*  提示：
+    * 主回归分析报告的$R^2$值高（大于0.8）
+    * $F^{\ast}$检验显著
+    * 不显著的$t^\ast$检验较多（斜率系数个数的一半及以上）
+        
+```{r fig-main-report,message=F,echo=FALSE,fig.cap="主回归模型Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/1-report-main.png")
+```
+    
+* 分析结论：
+    根据主回归报告（见\@ref(fig:fig-main-report)），下列证据将表明模型可能存在**严重**的多重共线性问题： 
+    *  判定系数$R^2=`r report_main$r.squared`$，表明样本回归线拟合较好
+    *  $F^{\ast}=`r f_test[1]`$，对应的概率值$p=`r sprintf('%.4f',pf(f_test[1],f_test[2],f_test[3],lower.tail=FALSE))`$，表明F检验极显著
+    *  斜率系数$t^\ast$检验不显著的有`r dim(t_no)[1]`个（主模型全部斜率系数共有`r dim(t_test)[1]-1`个），分别是`r paste(dimnames(t_no)[[1]],sep='',collapse = '，')`。
+
+```{r t-no,message=F,echo=FALSE,results='asis',fig.align="center"}
+kable(t_no,caption = "t检验不显著的斜率系数")
+```
+
+### 矩阵相关系数和矩阵散点图：绘制回归元之间的相关系数矩阵和散点图矩阵
+*  目标：观察$t^{\ast}$检验，判定系数$R^2$，$F^{\ast}$检验的关系
+*  思路：
+*  提示：
+    * 散点图矩阵发现高度线性相关的数据分布模式
+    * 相关系数矩阵发现高度线性相关（相关系数大于0.8）
+*  Eviews菜单操作：
+    1)  构造X数据的组对象（group）:
+        a. 依次选择X变量：`r paste(table_label$variable[c(-1,-2)],sep='',collapse = '，')`
+        a. 以组对象打开，鼠标右键：Open as group
+        a. 命名并保存组对象：name（**建议命名**为`group_x`）
+    2)  绘制散点图矩阵
+        a. 进入group视窗：双击打开组对象`group_x`
+        a. 进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Graph
+            * 选择绘图类型(Graph type)：Scatter
+            * 选择绘图细节(Detail)：Multiple series $\Rightarrow$ 下拉框选中Scatterplot matrix
+        a. 点击完成：OK
+        a. 命名并保存绘图（graph）对象![](picture/object/Graph.png)：（建议命名为scatter_matrix）
+        a. 查看结果：双击![](picture/object/Graph.png)scatter_matrix （见图\@ref(fig:fig-cor)）  
+
+    3)  制作得到相关系数矩阵表格（table）
+        a. 进入group视窗：双击打开组（group）对象![](picture/object/Group.png)group_x  
+        a. 进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Covariance Analysis
+            + 选择分析类型(Statistics)：只勾选Correlation
+            + 其他设置细节：（默认设置）
+            + 点击完成：OK
+        a. 将上述组（group）对象![](picture/object/Group.png)group_x另存为表格（table）对象![](picture/object/Table.png)
+            +  另存为表格(table)对象：点击Freeze
+            +  命名并保存表格(table)对象：点击name(建议为tab_cor)
+        a. 查看结果：双击![](picture/object/Table.png)tab_cor  （见图\@ref(fig:fig-scatter)）  
+
+ 
+```{r,echo=FALSE}
+options(digits = 4)
+group_x<-table_demo[,c(-2,-1)]
+cor_matrix<-cor(group_x)
+cor_matrix[upper.tri(cor_matrix,diag=T)]<-NA
+
+element_pos<-which(cor_matrix>0.9, arr.ind = T)
+v_name<-colnames(cor_matrix)[element_pos[,2]]
+h_name<-rownames(cor_matrix)[element_pos[,1]]
+m<-length(cor_matrix[element_pos])
+
+```
+
+    
+
+```{r fig-cor,message=F,echo=FALSE,fig.cap="自变量X间相关系数矩阵的Eviews操作"}
+include_graphics(path = "picture/lab5-multilinearity/2-tab-cor.png")
+```
+    
+
+```{r fig-scatter,message=F,echo=FALSE,fig.cap="自变量X间散点矩阵图的Eviews操作"}
+include_graphics(path = "picture/lab5-multilinearity/2-scatter-matrix.png")
+```
+
+
+* 分析结论
+    根据相关系数矩阵表（图\@ref:(fig:fig-cor）和散点矩阵图（图\@ref(fig:fig-scatter)），我们发现有`r m`对X变量呈现明显线性相关关系，分别是：
+
+ `r v_name[1]` VS `r h_name[1]`：$r_{`r paste(element_pos[1,],collapse =',' )`}=`r cor_matrix[element_pos][1]`$
+ 
+```{r list-cor,echo=FALSE,results="asis"}
+ list_cor<-NULL
+for (j in 1: m){
+  list_cor[j]<-paste(v_name[j],' VS ',h_name[j],'：$r_{',paste(element_pos[j,],collapse =',' ),'}$=',format(cor_matrix[element_pos][j],digits = 4),sep='')
+}
+list_cor<-as.list(list_cor)
+cat(paste0(list_cor,sep=" \n "),sep="\n")
+
+```
+
+
+### 辅助回归分析法：
+
+*  定义：
+    * 主回归模型(Main Model)是指Y变量对全部X变量的线性回归。
+    * 辅助回归模型(Auxiliary Model)是指一个X变量对其他X变量的线性回归。
+
+\begin{align}
+Y_t & = \hat{\beta}_0+\hat{\beta}_1X_{1t}+\hat{\beta}_2X_{2t}+\hat{\beta}_3X_{3t}+\hat{\beta}_4X_{4t}+\hat{\beta}_5X_{5t}+\hat{\beta}_6X_{6t}+e_{t} && \text{( M0 )} (\#eq:M0) \\
+X_{1t}& = \hat{\alpha}_0+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A1 )} (\#eq:A1) \\
+X_{2t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A2 )} (\#eq:A2) \\
+X_{3t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A3 )} (\#eq:A3) \\
+X_{4t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_5X_{5t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A4 )} (\#eq:A4) \\
+X_{5t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_6X_{6t}+e_{t} && \text{( A5 )} (\#eq:A5) \\
+X_{6t}& = \hat{\alpha}_0+\hat{\alpha}_1X_{1t}+\hat{\alpha}_2X_{2t}+\hat{\alpha}_3X_{3t}+\hat{\alpha}_4X_{4t}+\hat{\alpha}_5X_{5t}+e_{t} && \text{( A6 )} (\#eq:A6) 
+\end{align}
+
+```{r auxiliary-model,echo=FALSE}
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+exp_aux<-NULL
+for (j in 1:(k-1)){
+  exp_aux[j]<-paste(var_x[j], '~',paste(var_x[-j],collapse = '+'),sep=' ')
+  assign(paste0('model_A',j),lm(formula=formula(exp_aux[j]),data=table_demo))
+  assign(paste0('report_A',j),summary(lm(formula=formula(exp_aux[j]),data=table_demo)))
+  assign(paste0('r2_A',j),summary(lm(formula=formula(exp_aux[j]),data=table_demo))$r.squared)
+
+}
+
+```
+
+
+<!-- end list -->
+
+#### 构建`r k-1`个辅助回归方程
+*  目标：构建并得到`r k-1`个辅助回归方程及其Eviews报告。
+*  思路：分别构建一个X变量对其他X变量的线性回归，共会得到`r k-1`个辅助回归方程的Eviews报告。
+*  提示：此处仅以A1 \@ref(eq:A1)为例，其他辅助模型类似操作。
+*  Eviews菜单操作（具体操作演示见图\@ref(fig:fig-auxiliary)）：
+    1)  依次选择$\Rightarrow$ Quick $\Rightarrow$ Estimation Equation  
+    2)  引导设置Equation Estimation $\Rightarrow$ specification  
+        a. Equation specification：输入命令  `r paste(table_label$variable[3],'c',paste(table_label$variable[c(-1,-2,-3)],sep='',collapse = ' '),sep=' ')`
+        b. Estimation settings：
+            * Method: 下拉选择LS - Least Squares (NLS and ARMA)
+            * Sample:  （默认设置）
+        c. 点击完成：OK
+        c. 命名保存方程对象![](picture/object/Equation.png)：（建议命名为eq_a1，其他辅助回归方程依次命名为eq_a2，...，eq_a6）
+        c. 查看结果：双击![](picture/object/Equation.png)eq_a1
+        
+```{r fig-auxiliary,message=F,echo=FALSE,fig.cap="辅助回归Eviews操作过程"}
+include_graphics(path = "picture/lab5-multilinearity/3-auxiliary-model.png")
+```
+
+全部`r k-1`个辅助回归方程的Eviews分析报告结果：A1辅助模型见图\@ref(fig:fig-A1)；A2辅助模型见图\@ref(fig:fig-A2)；A3辅助模型见图\@ref(fig:fig-A3)；A4辅助模型见图\@ref(fig:fig-A4)；A5辅助模型见图\@ref(fig:fig-A5)；A6辅助模型见图\@ref(fig:fig-A6)；
+
+
+```{r fig-A1,message=F,echo=FALSE,fig.cap="辅助回归模型A1的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/3-A1.png")
+```
+
+
+```{r fig-A2,message=F,echo=FALSE,fig.cap="辅助回归模型A2的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/3-A2.png")
+```
+
+
+```{r fig-A3,message=F,echo=FALSE,fig.cap="辅助回归模型A3的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/3-A3.png")
+```
+
+
+```{r fig-A4,message=F,echo=FALSE,fig.cap="辅助回归模型A4的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/3-A4.png")
+```
+
+
+```{r fig-A5,message=F,echo=FALSE,fig.cap="辅助回归模型A5的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/3-A5.png")
+```
+
+
+```{r fig-A6,message=F,echo=FALSE,fig.cap="辅助回归模型A6的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/3-A6.png")
+```
+
+
+#### 判定系数比较法
+*  目标：分别`r k-1`个辅助回归方程的判定系数$R^2_j(j=1,\cdots,`r k-1`)$，比较它们与主模型判定系数$R^2$的大小关系。  
+*  思路：分别提取辅助回归方程的Eviews报告中的判定系数。  
+*  提示：
+    * 操作提示：构造一个列向量（vector）对象![](picture/object/Vector.png)（含`r k-1`个元素），把`r k-1`个辅助回归方程的判定系数依次放置其中。
+    * 诊断提示：辅助回归方程的判定系数$R^2_j(j=1,\cdots,`r k-1`)$大于主回归方程的判定系数$R^2$  
+*  Eviews菜单操作（见图\@ref(fig:fig-r2)）：
+    1)  构建一个列向量（vector）对象![](picture/object/Vector.png)（含`r k-1`个元素），建议命名为r2
+        a.  命令视窗（Command）输入命令 ：``vector(`r k-1`) r2``
+        b.  运行命令：命令行中按Enter键
+    2)  提取`r k-1`个辅助回归方程的判定系数，并依次放置到列向量（vector）对象![](picture/object/Vector.png)r2中。在命令视窗（Command）中依次输入并运行下列命令：
+        a. 提取并放置辅助模型A1方程\@ref(eq:A1)的$R^2_1$：`r2.fill(o=1) eq_a1.@r2`
+        b. 提取并放置辅助模型A2方程\@ref(eq:A2)的$R^2_2$：`r2.fill(o=2) eq_a2.@r2`
+        b. 提取并放置辅助模型A3方程\@ref(eq:A3)的$R^2_3$：`r2.fill(o=3) eq_a3.@r2`
+        b. 提取并放置辅助模型A4方程\@ref(eq:A4)的$R^2_4$：`r2.fill(o=4) eq_a4.@r2`
+        b. 提取并放置辅助模型A5方程\@ref(eq:A5)的$R^2_5$：`r2.fill(o=5) eq_a5.@r2`
+        b. 提取并放置辅助模型A6方程\@ref(eq:A6)的$R^2_6$：`r2.fill(o=6) eq_a6.@r2`
+        c. 查看结果：双击![](picture/object/Vector.png)r2
+    3)  说明（[Eviews代码行的解读](http://www.eviews.com/help/helpintro.html#page/content/Regress1-Equation_Output.html)^[具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html#page/content/Regress1-Equation_Output.html]）：
+        a. 代码`r2.fill(o=1)`表示给列向量（vector）对象![](picture/object/Vector.png)r2的第1个元素（`o=1`）赋值（`.fill`）
+        b. 代码`eq_a1.@r2`表示提取方程（equation）对象![](picture/object/Equation.png)eq_a1的判定系数$R^2$（`.@r2`）
+
+    
+```{r fig-r2,message=F,echo=FALSE,fig.cap="辅助回归模型A1~A6的判定系数提取汇总操作"}
+include_graphics(path = "picture/lab5-multilinearity/3-vector-R2.png")
+```
+
+根据上述比较分析，判定系数比较法的结论初步认为模型\@ref(eq:M0)可能存在严重的多重共线性问题理由如下：
+
+<!--下面表格可以用kable的形式表现出来。后续待完善。-->
+
+| 回归类型|    模型设置                                  |   判定系数$R^2=$     |
+|---------|----------------------------------------------|---------------------------------
+|辅助回归 |   `r table_label$variable[3]`对其他全部$X_i$ |             `r r2_A1`        |
+|辅助回归 |   `r table_label$variable[4]`对其他全部$X_i$ |             `r r2_A2`        |
+|辅助回归 |   `r table_label$variable[5]`对其他全部$X_i$ |             `r r2_A3`        |
+|辅助回归 |   `r table_label$variable[6]`对其他全部$X_i$ |             `r r2_A4`        |
+|辅助回归 |   `r table_label$variable[7]`对其他全部$X_i$ |             `r r2_A5`        |
+|辅助回归 |   `r table_label$variable[8]`其他全部$X_i$   |             `r r2_A6`        |
+
+Table: 主回归和辅助回归的判定系数(分析结果) (\#tab:R2)
+
+    
+
+#### 方差膨胀因子（VIF）比较法
+*  目标：分别得到`r k-1`个辅助回归方程的方差膨胀因子$VIF_j(j=1,\cdots,`r k-1`)$，与参考值进行比较，得到相关结论。  
+*  思路：
+    * Eviews手动计算：根据`r k-1`个辅助回归方程的判定系数$R^2_j$（见表\@ref(tab:R2)），分别计算得到各自的方差膨胀因子$VIF_j$。
+    * Eviews方程提取：利用Eviews菜单功能Coefficient Diagnostics $\Rightarrow$ Variance Inflation Factors 一次性得到主回归模型的Eviews方程![](picture/object/Equation.png)eq_m0全部方差膨胀因子$VIF_j(j=1,\cdots,`r k-1`)$  
+*  提示：
+    * 操作提示：构造一个列向量（vector）对象![](picture/object/Vector.png)（含`r k-1`个元素），用来装载`r k-1`个辅助回归方程的方差膨胀因子$VIF_j(j=1,\cdots,(`r k-1`))$。  
+    * 诊断提示：辅助回归方程的方差膨胀因子中如果$VIF_j\in[10,100]$表明中度多重共线性；如果$VIF_j\geq{100}$表明严重多重共线性
+    * 公式提示：辅助回归方程方差膨胀因子的理论计算公式为
+    
+\begin{equation}
+VIF_j=\frac{1}{1-R^2_j},(j=1,\cdots,`r k-1`) 
+(\#eq:VIF)
+\end{equation}
+  
+*  （方法1）Eviews操作（手动计算实现，具体见图\@ref(fig:fig-vector-VIF)）：
+    1)  计算准备。创建一个常数列向量（vector）对象![](picture/object/Vector.png)unit（含`r k-1`个元素），使其元素全部为1（建议将该常数列向量命名为unit）
+        a.  命令视窗（Command）输入命令 ：``vector(`r k-1`) unit=1``
+        b.  运行命令：命令行中按Enter键
+        c. 查看结果：双击![](picture/object/Vector.png)unit  
+    2)  计算$VIF_j$。根据理论计算公式\@ref(eq:VIF)，对常数列向量![](picture/object/Vector.png)unit和判定系数向量![](picture/object/Vector.png)r2进行运算，得到方差膨胀因子向量![](picture/object/Vector.png)vif（建议将方差膨胀因子向量命名为vif）
+        a.  命令视窗（Command）输入命令 ：``vector vif=@ediv(unit,(unit-r2))``
+        b.  运行命令：命令行中按Enter键
+        c. 查看结果：双击![](picture/object/Vector.png)vif  
+    3)  说明（[Eviews代码行的解读](http://www.eviews.com/help/helpintro.html#page/content/matrixref-Matrix_Language_Reference.html)^[具体细节请参看Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html#page/content/matrixref-Matrix_Language_Reference.html]）：
+        a. 代码``vector(`r k-1`) vif=@ediv(unit,(unit-r2))``表示生成一个名为vif列向量（vector）对象![](picture/object/Vector.png)vif（`vector vif`），并使该列向量等于另外两个向量之除（`=@ediv(unit,(unit-r2))`）
+        b. 代码`@ediv(unit,(unit-r2))`表示用Eviews矩阵函数`@ediv(vector1,vector2)`两个向量进行元素相除的计算。
+    
+```{r fig-vector-VIF,message=F,echo=FALSE,fig.cap="辅助回归模型A1~A6的VIF手动提取操作"}
+include_graphics(path = "picture/lab5-multilinearity/3-vector-VIF.png")
+```
+  
+*  （方法2）Eviews操作（菜单操作实现，具体见图\@ref(fig:fig-tab-VIF)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入功能菜单：
+        *  选择分析菜单：$\Rightarrow$ View $\Rightarrow$ Coefficient Diagnostics $\Rightarrow$ Variance Inflation Factors
+        *  另存为表格(table)对象：点击Freeze
+        *  命名并保存表格(table)对象：点击name(建议为tab_vif)
+        *  查看结果：双击![](picture/object/Table.png)tab_vif  
+        
+  
+```{r fig-tab-VIF,message=F,echo=FALSE,fig.cap="辅助回归模型A1~A6的VIF系统提取操作"}
+include_graphics(path = "picture/lab5-multilinearity/3-tab-VIF.png")
+```
+  
+
+#### 容忍度（TOL）比较法
+*  目标：分别得到`r k-1`个辅助回归方程的容忍度$TOL_j(j=1,\cdots,`r k-1`)$，与参考值进行比较，得到相关结论。  
+*  思路：根据`r k-1`个辅助回归方程的判定系数$R^2_j$（见表\@ref(tab:R2)），分别计算得到各自的容忍度$TOL_j$。  
+*  提示：
+    * 操作提示：构造一个列向量（vector）对象![](picture/object/Vector.png)（含`r k-1`个元素），用来装载`r k-1`个辅助回归方程的容忍度$TOL_j(j=1,\cdots,(`r k-1`))$
+    * 诊断提示：辅助回归方程的的容忍度如果$TOL_j\in[0.01,0.1]$表明中度多重共线性；如果$TOL_j\leq{0.01}$表明存在严重的多重共线性
+    * 公式提示：辅助回归方程容忍度的理论计算公式为
+    
+\begin{equation}
+VIF_j=1-R^2_j=\frac{1}{VIF_j},(j=1,\cdots,`r k-1`) 
+(\#eq:TOL)
+\end{equation}
+
+*  Eviews操作（手动计算，具体见图\@ref(fig:fig-TOL)）：
+    1)  计算$TOL_j$。根据理论计算公式\@ref(eq:TOL)，对常数列向量![](picture/object/Vector.png)unit和判定系数向量![](picture/object/Vector.png)r2进行运算，得到容忍度向量![](picture/object/Vector.png)tol（建议将容忍度向量命名为tol）
+        a.  命令视窗（Command）输入命令 ：`vector tol=unit-r2`
+        b.  运行命令：命令行中按Enter键
+        c.  查看计算结果：双击![](picture/object/Vector.png)tol
+
+
+```{r fig-TOL,message=F,echo=FALSE,fig.cap="辅助回归模型A1~A6的TOL手动提取操作"}
+include_graphics(path = "picture/lab5-multilinearity/3-vector-TOL.png")
+```
+
+    
+### 回归系数方差分解法（Coefficient Variance Decomposition）（选学）
+
+*  目标：利用Eviews的共线性诊断菜单，进行回归系数方差分解（Coefficient Variance Decomposition）。分析病态数（Condition Numbers，K）和方差分解比率（variance-decomposition proportions，VDP），并与参考值进行比较，得到相关结论  
+
+*  思路：特征值（Eigenvalue）；病态数（condition number，K）；方差分解比率（variance-decomposition proportions，VDP）  
+
+*  提示：
+    * 操作提示：用Eviews的共线性诊断菜单 $\Rightarrow$ View $\Rightarrow$ Coefficient Diagnostics $\Rightarrow$ Coefficient Variance Decomposition
+    * 诊断提示：若发现至少一个病态数$K \leq{(0.001}$，则表明存在严重多重共线性；观察病态数最小时所对应的方差分解比率，如果有多个斜率系数的$VDP \geq{0.5}$ 
+，则表明它们存在严重的多重共线性
+    * 理论提示：该诊断方法由Belsley, Kuh and Welsch (BKW) 2004提出，具体细节可以参考[Eviews帮助文档](http://www.eviews.com/help/helpintro.html#page/content/testing-Coefficient_Diagnostics.html)^[具体细节可以参考Eviews在线帮助文档，网址http://www.eviews.com/help/helpintro.html#page/content/testing-Coefficient_Diagnostics.html]。注意，Eviews分析的病态数是基于矩阵$\mathbf{(X'X)^{-1}}$，而不是基于矩阵$\mathbf{X}$
+    
+    $$\widehat{var}\_\widehat{cov}(\mathbf{\hat{\beta}})=\hat{\sigma}^2\mathbf{(X'X)^{-1}}$$
+
+*  Eviews操作（菜单操作实现，具体见图\@ref(fig:fig-cvd)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入功能菜单：
+        *  选择分析菜单：$\Rightarrow$ View $\Rightarrow$ Coefficient Diagnostics $\Rightarrow$ Coefficient Variance Decomposition
+        *  另存为表格(table)对象：点击Freeze
+        *  命名并保存表格(table)对象：点击name(建议为tab_cvd)
+        *  查看结果：双击![](picture/object/Table.png)tab_cvd （具体Eviews报告见\@ref(fig:fig-cvd-report)）
+  
+```{r fig-cvd,message=F,echo=FALSE,fig.cap="主回归模型系数方差分解的操作过程"}
+include_graphics(path = "picture/lab5-multilinearity/4-table-cvd.png")
+```
+
+
+```{r fig-cvd-report,message=F,echo=FALSE,fig.cap="主回归模型系数方差分解的Eviews报告"}
+include_graphics(path = "picture/lab5-multilinearity/4-vcd-full-result.png")
+```
+
+## 对存在多重共线性的模型进行修正
+
+### 简单剔除变量法
+*  目标：根据某种考虑或规则，删除特定变量，重新估计回归模型，得到相关结论。  
+
+*  思路：面对严重的共线性，最简单的方法就是去掉某些变量，但剔除变量会导致设定误差。实际中需要权衡利弊。
+
+*  提示：
+    * 酌情删除：经济学和实践观察法
+    * 巧妙删除：变量变换法
+    * 规则删除：逐步回归法
+    
+#### 经济学和实践观察法
+* 提示：
+    * 理论提示：利用先验信息（成为研究领域的专家！）酌情删除特定变量，减弱模型的多重共线性问题。那怎样才能获得先验信息呢？它往往源自经验研究工作或者有关基础理论。  
+    
+    * 操作提示：
+        * 改用真实GNP，不用名义GNP（`r var_x[2]`）：将名义GNP（`r var_x[2]`）除以价格指数CPI（`r var_x[1]`）
+        * 留下14 岁以上非机构人口数（`r var_x[5]`），去掉时间趋势（`r var_x[6]`）：14 岁以上非机构人口数随时间不断增长，它与时间趋势变量高度相；而且时间趋势变量还和很多其他变量高度相关。
+        * 去掉失业人数变量（`r var_x[3]`）：可能失业率是劳动力市场状况的一个更好的度量指标，但我们没有这方面的数据，而失业人数也没有充分的理由包括进来。  
+
+*  Eviews操作（菜单操作实现，见图\@ref(fig:fig-adj-man)）：
+    1) 变量变换，生成实际GNP（=名义GNP/CPI）（见图\@ref(fig:fig-adj-man)）
+        a.  命令视窗（Command）输入命令 ：``series x_rgnp=`r var_x[2]`/`r var_x[1]` ``
+        b.  运行命令：命令行中按Enter键
+        c.  查看计算结果  
+    2)  引导设置Equation Estimation$\Rightarrow$specification  
+        a. Equation specification：输入命令  `r paste(var_y,'c x_rgnp',paste(var_x[c(-1,-2,-6)],sep='',collapse = ' '),sep=' ')`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+    3)  模型命名：建议为`eq_adj_man`  
+    
+        主回归分析结果如图：
+        
+```{r fig-adj-man,message=F,echo=FALSE,fig.cap="多重共线性问题模型的矫正：酌情删除法"}
+include_graphics(path = "picture/lab5-multilinearity/5-model-adj-man.png")
+```
+
+```{r fig-new-X,message=F,echo=FALSE,fig.cap="多重共线性模型的变量变换操作"}
+include_graphics(path = "picture/lab5-multilinearity/5-new-X.png")
+```
+
+#### 变量变换法
+##### 一阶差分法(first difference form)：
+* 理论提示：模型中两个解释变量$X_{k,i}$和$X_{w,i}$可能导致高度多重共线性，但是分别对二者进行一阶差分，再进行回归建模，新模型可能的多重共线性问题很可能大大缓解！具体变换如下:
+
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2,t}+\beta_3X_{3,t}+u_t && \text{原模型} (\#eq:diff0) \\
+Y_{t-1} & =\beta_1+\beta_2X_{2,t-1}+\beta_3X_{3,t-1}+u_{t-1} && \text{滞后1阶变量模型} (\#eq:diff1) \\
+Y_t-Y_{t-1} & =\beta_2(X_{2,t}-X_{2,t-1})+\beta_3(X_{3,t}-X_{3,t-1})+(u_t-u_{t-1}) && \text{一阶差分模型} (\#eq:diff) \\
+Y^{\ast}_t &=\beta_2X^{\ast}_{2,t}+\beta_3X^{\ast}_{3,t}+v_t && \text{精简化模型} (\#eq:diff-new)
+\end{align}
+
+* 提醒：“按下葫芦浮起瓢”，治疗比疾病更糟糕？差分变换$Y_{t-1}$减少了自由度；同时$v_t=(u_t-u_{t-1})$可能带来异方差问题。
+
+
+##### 比率变换法(ratio transformation)
+* 理论提示：模型中两个解释变量$X_{k,i}$和$X_{w,i}$可能导致高度多重共线性，如果可以用其中的一个变量同时对模型其他变量进行比率变换，而且如果变换后的所有变量还能具有经济学含义，那么理论上将至少消掉一个回归元，从而大大缓解甚至消除多重共线性问题！具体变换如下:
+    * 消费支出决定案例：$Y_t$ 为以真实价格表示的消费支出，$X_{2,t}$表示GDP， $X_{3,t}$表示总人口。
+    
+\begin{align}
+Y_t & =\beta_1+\beta_2X_{2,t}+\beta_3X_{3,t}+u_t && \text{原模型} (\#eq:trans0) \\
+\frac{Y_t}{X_{3,t}} & =\frac{\beta_1}{X_{3,t}}+\beta_2\frac{X_{2,t}}{X_{3,t}}+\frac{u_t}{X_{3,t}} && \text{比率变换模型} (\#eq:trans) \\
+Y^{\ast}_t &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2,t}+v_t && \text{精简化模型} (\#eq:trans-new)
+\end{align}
+
+* 提醒：“按下葫芦浮起瓢”，治疗比疾病更糟糕？$v_t=\frac{u_t}{X_{3,t}}$可能带来异方差问题。
+
+#### 逐步最小二乘回归法（Stepwise Least Squares Regression）
+
+* 提示：
+    * 理论提示：逐步最小二乘回归法（Stepwise Least Squares Regression）通过多个统计标准，可以自动判断模型该引入还是删除某些自变量X。这些统计标准主要包括分析引入新变量对回归平方和ESS的贡献大小，及F检验等。
+    * [操作提示](http://www.eviews.com/help/helpintro.html#page/content/Regress2-Stepwise_Least_Squares_Regression.html])^[具体细节可参看Eviews说明书，网址http://www.eviews.com/help/helpintro.html#page/content/Regress2-Stepwise_Least_Squares_Regression.html]：
+        * 前向逐步回归法（Stepwise-Forwards），是从一个简化模型（很少X变量）开始，再逐步引入新的X变量，直至达到某个统计标准（主要是p值标准）
+        * 后向逐步回归法（Stepwise-Backwards），是从一个完全模型（全部X变量）开始，对模型逐步删除某些X变量，直至剩余变量都达到某个统计标准（主要是p值标准）  
+
+*  Eviews操作（以后向逐步回归法为例，见图\@ref(fig:fig-adj-step)）：
+    1)  依次选择$\Rightarrow$ Quick $\Rightarrow$ Estimation Equation  
+    2)  引导设置Equation Estimation $\Rightarrow$ Specification  
+        a. 输入因变量和选择一直保留的自变量（Dependent variable followed by list of always included regressors）： `r var_y` （此处如果仅填Y变量，则任何X变量都没有强制一定要留在模型中）
+        a. 输入自变量（List of search regressors）：`r paste('c ',var_x,sep='',collapse = ' ')`
+        b. 估计方法（Estimation settings）：
+            * Method：下拉选择`STEPLS - stepwise Least Squares`
+            * Sample： **默认设置**
+    3) 引导设置Equation Estimation $\Rightarrow$ Options
+        a. 方法设置（Selection Method）：
+            * 下拉选择Stepwise
+            * 点击选择Backwards
+        b. 标准设置（Stopping Criteria）：
+            * 点击选择p-value
+            * 填写（p-value forwards）：0.05
+            * 填写（p-value backwards）：0.05
+            * 其他：默认设置
+        c. 权重设置（Weights）：默认设置
+        c. 步数设置（Maximum steps）：默认设置
+        c. 完成设置：点击`OK`  
+    3) 模型命名：建议为`eq_adj_step`  
+    4) 查看分析报告（见图\@ref(fig:fig-adj-step-report)）
+
+```{r fig-adj-step,message=F,echo=FALSE,fig.cap="多重共线性模型的矫正：后向逐步回归法"}
+include_graphics(path = "picture/lab5-multilinearity/5-medel-adj-step-show.png")
+```
+
+```{r fig-adj-step-report,message=F,echo=FALSE,fig.cap="多重共线性模型的后向逐步回归法矫正报告"}
+include_graphics(path = "picture/lab5-multilinearity/5-medel-adj-step-full-report.png")
+```
+
+### 主成分法(Principal Components)（自学）
+        

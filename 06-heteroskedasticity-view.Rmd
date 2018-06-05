@@ -1,0 +1,790 @@
+---
+title: "计量经济学Eviews实验指导书"
+subtitle : "Lab 6 异方差模型的诊断和矫正"
+author: "胡华平"
+date: "2018/4/13"
+output: 
+  bookdown::word_document2: 
+    fig_caption:  true
+    toc: true
+    toc_depth: 4
+  bookdown::html_document2:
+    number_sections: yes
+    toc: yes
+    fig_caption:  true
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    fig_caption:  true
+    includes:
+      in_header: header.tex
+      before_body: preamble.tex
+    toc: true
+    toc_depth: 5
+    number_sections: true
+    keep_tex: true
+  html_document:
+    number_sections: yes
+    toc: yes
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: yes
+documentclass: article
+classoption: [(landscape,a4paper),(portrait,a4paper)]
+fontsize: "12pt"
+thanks: "感谢经济管理学院数量经济学教研室同仁的大力支持！"
+pagestyle: "headings"
+---
+
+# 异方差的诊断和矫正{#heteroskedasticity}
+
+```{r global_options6, include=FALSE,message=FALSE}
+knitr::opts_chunk$set(fig.align='center') # Places figures on their own pages
+library('bookdown')
+library('knitr')
+library('xlsx')
+options(digits=4,scipen=999)
+```
+
+\newpage
+
+## 实验目的及要求
+
+*  **目的**：掌握异方差问题的检验与处理方法。
+*  **要求**：在老师指导下完成计量经济模型的异方差检验，并对存在异方差的模型进行修正，最终得到正确的分析结果。
+
+
+## 实验原理
+
+* 对于不同的样本点，随机误差项的方差不再是常数，而互不相同，则认为出现了异方差性。
+* 异方差的实质表现为随机误差项的方差随着解释变量（引起异方差的解释变量）观测值的变化而变化。
+* 对于出现异方差的原模型主要采用校正其异方差，再对校正后的模型采用普通最小二乘法估计。
+
+## 实验内容
+
+```{r create_salary,message=F,echo=FALSE,eval=FALSE,include=FALSE}
+set.seed(123)
+library("knitr")
+# get students data
+students<-read.csv("data/students-list-2018-spring.csv",header = T,sep=",")
+s<-dim(students)[1]
+# get case data
+ready<-readxl::read_xlsx(path = "data/Lab6-salary-origin.xlsx",range="A1:G448")
+n<-dim(ready)[1]
+# create random Y data
+rdm<-matrix(rnorm(s*n),nrow=s) #GET RANDOM NUMBERS
+ready_rdm<-rdm+matrix(rep(t(ready[,2]),s),nrow=s,byrow=TRUE)
+ready_rdm<-format(ready_rdm,digits = 2,nsmall = 2)
+# get X data
+x_data<-ready[,c(-1,-2)]
+# get all exercise data table
+table_exercise<-as.matrix(cbind(x_data,t(ready_rdm)))
+# get students data table
+table_students<-cbind(matrix(rep(names(x_data),dim(students)[2]),nrow=dim(students)[2],byrow=TRUE),t(students))
+# conbine students data & fixed X data & random Y data
+table_lab<-as.data.frame(rbind(table_students,table_exercise))
+name_row<-c(names(students),paste0("n",1:n))
+name_col<-c(names(x_data),paste0("Ydata",1:s))
+dimnames(table_lab)<-list(name_row,name_col)
+# write table for lab exercise
+write.csv(table_lab,"data/Lab6-salary-lab.csv")
+```
+
+
+```{r load-car,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab6-car.xlsx",range="A1:F82")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("汽车品牌序号","单位油耗的行驶里程数（英里/加仑）","最高时速（英里/小时）","发动机马力","汽车空间（立方英尺）","车身重量（百磅）")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+1. 采用最小二乘法建立主回归模型  
+
+2. 侦查模型是否存在异方差问题
+    1) 非正式检验方法（图形检验法）：
+        *  残差趋势图（dot plot）
+        *  残差散点图（scatter plot）  
+
+    2) 正式检验方法
+        *  Park检验法
+        *  Glejser检验法
+        *  BPG检验法
+        *  White检验法  
+
+3. 在发现存在异方差的基础上，对原模型进行异方差问题的处理：
+    1) 使用加权最小二乘法校正异方差  
+    2) 使用White校正法解决异方差  
+
+### 实验背景——汽车油耗
+
+**汽车油耗数据**：表\@ref(tab:data-car)给出给出了`r n`辆汽车在`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面的数据。
+
+```{r data-car,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("汽车单位油耗里程数据","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-car)：
+
+```{r label-car,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+\  
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+Y_i=\beta_1+\beta_2X_{2i}+\beta_3X_{3i}+\beta_4X_{4i}+\beta_5X_{5i}+e_{i} (\#eq:M0-car)
+\end{equation}
+
+
+## 主要实验步骤 
+
+###  导入数据并进行预处理
+
+*  目标：
+*  思路：
+*  新建Eviews工作文件（见图\@ref(fig:fig-load-data)）
+    *    提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y
+    *    Eviews菜单操作：
+         a. 依次操作：File$\Rightarrow$New$\Rightarrow$Workfile
+         b. 进行workfile create引导设置：
+             + workfile structure type: `unstructured/undatede`
+             + data range：`r n`
+             + workfile names(optional):
+                 - WF: `car`（**建议命名**）
+                 - Page: `mileage`（**建议命名**）  
+
+*  Eviews导入数据
+    *  提示：Excel数据，每个同学的Y数据都不同，找到自己学号对应下的Y数据（X数据所有同学都一样）  
+    *  菜单操作（Excel和Eviews）：  
+        a.    Excel找到数据。Excel表格中仅保留自己需要的数据（`r names(table_demo)`）
+        c.    Eviews导入数据。File$\Rightarrow$Import$\Rightarrow$Import From File：`d:/econometrics/data/Lab6-car.xlsx`
+
+```{r fig-load-data,message=F,echo=FALSE,fig.cap="导入数据的Eviews视窗"}
+include_graphics(path = "picture/lab6-heteroskedasticity/1-load-data.png")
+```
+
+###  采用最小二乘法建立主回归模型{#main-model}
+
+```{r M0-car,echo=FALSE}
+exp_main<-formula(paste(var_y, '~',paste(var_x,collapse = '+'),sep=' '))
+model_main<-lm(formula=exp_main,data=table_demo)
+
+report_main<-summary(model_main)
+f_test<-report_main$fstatistic
+mat_coef<-report_main$coefficients
+t_test<-mat_coef[,3:4]
+t_no<-t_test[which(t_test[,2]>0.1),]
+```
+
+*  目标：
+*  思路：
+*  提示：主回归模型为
+
+$$Y_t=\hat{\beta}_1+\hat{\beta}_2X_{2i}+\hat{\beta}_3X_{3i}+\hat{\beta}_4X_{4i}+\hat{\beta}_5X_{5i}+e_{i}$$
+
+*  Eviews菜单操作（见图\@ref(fig:fig-eq-m0)）：
+    1)  依次选择$\Rightarrow$Quick$\Rightarrow$Estimation Equation  
+    2)  引导设置Equation Estimation$\Rightarrow$specification  
+        a. Equation specification：输入命令  `r paste(table_label$variable[2],'c',paste(table_label$variable[c(-1,-2)],sep='',collapse = ' '),sep=' ')`
+        b. Estimation settings：
+            * Method: 下拉选择`LS - Least Squares (NLS and ARMA)`
+            * Sample:  **默认设置**
+        c. 点击`OK`  
+    3)  模型命名：建议为`eq_m0`  
+    
+        主回归分析结果见图\@ref(fig:fig-eq-m0-report)： 
+        
+```{r fig-eq-m0,message=F,echo=FALSE,fig.cap="主回归模型Eviews操作"}
+include_graphics(path = "picture/lab6-heteroskedasticity/2-eq-m0.png")
+```
+
+```{r fig-eq-m0-report,message=F,echo=FALSE,fig.cap="主回归模型Eviews报告"}
+include_graphics(path = "picture/lab6-heteroskedasticity/2-eq-m0-report.png")
+```
+    
+###  侦查模型是否存在异方差
+
+#### 初步观察法（观察主回归方程）
+*  目标：观察主回归方程分析报告，分析回归报告结果，得出初步结论
+*  思路：观察$t^{\ast}$检验，判定系数$R^2$，$F^{\ast}$检验的关系
+*  提示：
+    * 模型使用的数据是否是截面数据
+    * 主回归分析报告的$R^2$值
+    * 模型整体$F^{\ast}$检验结果
+    * 斜率系数的$t^\ast$检验结果
+        
+* 分析结论：
+    根据主回归报告（见图\@ref(fig:fig-eq-m0-report)），表明模型可能存在**严重**的异方差问题。 
+    
+#### 非正式检验法（图示法）
+
+*  目标：观察$e_i$或$e^2_i$的图形模式
+*  思路：判定$e_i$或$e^2_i$与$i$、$X_i$、$X^2_i$、$Y_i$、$Y^2_i$等的图形关系
+*  提示：
+    * 描点图（dot plot）是分析一个变量的图形模式。例如$e_i$或$e^2_i$（做纵轴）相对于$i$（做横轴）的图形关系
+    * 散点图（scatter plot）是分析两个变量之间的图形模式。例如$e_i$或$e^2_i$（做纵轴），相对于$X_i$或$X^2_i$或$Y_i$或$Y^2_i$的图形关系。  
+
+*  Eviews菜单操作：
+    1)  分别生成新序列$e_i$、$e^2_i$、$Y^2_i$和$X^2_i$（见图\@ref(fig:fig-gen-series)）
+        a. 生成残差$e^2_i$和$e^2_i$序列（建议分别命名为ei和ei_sqr）
+            * 命令视窗（Command）输入命令 ：`series ei=resid`
+            * 命令视窗（Command）输入命令 ：`series ei_sqr=resid^2`
+            * 运行命令：命令行中按Enter键  
+        a. 生成残差$Y^2_i$序列（建议命名为Y_sqr）
+            * 命令视窗（Command）输入命令 ：`` series `r paste(var_y[1],'_sqr=',var_y[1],'^2',sep='')` ``
+            * 运行命令：命令行中按Enter键  
+        a. 生成残差$X^2_i$序列（建议分别命名为`r paste(var_x,'_sqr',sep='',collapse=',')`）
+            * 命令视窗（Command）输入命令 ：`` series `r paste(var_x[1],'_sqr=',var_x[1],'^2',sep='')` ``
+            * 命令视窗（Command）输入命令 ：`` series `r paste(var_x[2],'_sqr=',var_x[2],'^2',sep='')` ``
+            * 命令视窗（Command）输入命令 ：`` series `r paste(var_x[3],'_sqr=',var_x[3],'^2',sep='')` ``
+            * 命令视窗（Command）输入命令 ：`` series `r paste(var_x[4],'_sqr=',var_x[4],'^2',sep='')` ``
+            * 运行命令：上述命令行中依次按Enter键
+        c. 查看结果：
+            * 双击![](picture/object/Series.png)`ei`
+            * 双击![](picture/object/Series.png)`ei_sqr`
+            * 双击![](picture/object/Series.png)`` `r paste(var_y[1],'_sqr',sep='')` ``
+            * 双击![](picture/object/Series.png)`` `r paste(var_x[1],'_sqr',sep='')` ``
+            * 双击![](picture/object/Series.png)`` `r paste(var_x[2],'_sqr',sep='')` ``
+            * 双击![](picture/object/Series.png)`` `r paste(var_x[3],'_sqr',sep='')` ``
+            * 双击![](picture/object/Series.png)`` `r paste(var_x[4],'_sqr',sep='')` ``  
+
+    2)  绘制$e_i$和$e^2_i$序列的描点图（dot plot）（见图\@ref(fig:fig-dot-resid)）
+        a. 选择序列对象：键盘Ctrl键+依次单击选择序列![](picture/object/Series.png)`ei`和![](picture/object/Series.png)`ei_sqr`
+        a. 进入引导菜单：$\Rightarrow$ Quick $\Rightarrow$ Graph
+            * 选择绘图类型(Graph type)：Dot plot
+            * 选择绘图细节(Detail)：$\Rightarrow$ Multiple series $\Rightarrow$ 下拉选择 Multiple graphs
+        a. 点击完成：OK
+        a. 命名并保存绘图（graph）对象![](picture/object/Graph.png)：建议命名为dot_resid
+        a. 查看结果：双击![](picture/object/Graph.png)dot_resid（见图\@ref(fig:fig-dot-resid-report)）
+        
+    3)  绘制$e_i$序列对$Y_i$; $`r paste(paste0('X_{',1:(k-1)),'i}',collapse = ';',sep=' ')`$的散点图图（scatter plot）（见图\@ref(fig:fig-scatter-ei)）
+        a. 选择序列对象：键盘Ctrl键+依次单击选择序列![](picture/object/Series.png)ei；`r paste(paste('![](picture/object/Series.png)',table_label$variable[-1],sep=''),collapse = '；')`
+        a. 进入引导菜单：$\Rightarrow$ Quick $\Rightarrow$ Graph
+            * 选择绘图类型(Graph type)：Scatter
+            * 选择绘图细节(Detail)：$\Rightarrow$ Multiple series $\Rightarrow$ 下拉选择 Multiple graphs - First vs. all
+        a. 点击完成：OK
+        a. 命名并保存绘图（graph）对象![](picture/object/Graph.png)：建议命名为scatter_ei
+        a. 查看结果：双击![](picture/object/Graph.png)scatter_ei（见图\@ref(fig:fig-scatter-ei)）  
+        
+    4)  绘制$e^2_i$序列对$Y_i$; $`r paste(paste0('X_{',1:(k-1)),'i}',collapse = ';',sep=' ')`$的散点图图（scatter plot）（见图\@ref(fig:fig-scatter-ei-sqr)）
+        a. 选择序列对象：键盘Ctrl键+依次单击选择序列![](picture/object/Series.png)ei_sqr；`r paste(paste('![](picture/object/Series.png)',table_label$variable[-1],sep=''),collapse = '；')`
+        a. 进入引导菜单：$\Rightarrow$ Quick $\Rightarrow$ Graph
+            * 选择绘图类型(Graph type)：Scatter
+            * 选择绘图细节(Detail)：$\Rightarrow$ Multiple series $\Rightarrow$ 下拉选择 Multiple graphs - First vs. all
+        a. 点击完成：OK
+        a. 命名并保存绘图（graph）对象![](picture/object/Graph.png)：建议命名为scatter_ei_sqr
+        a. 查看结果：双击![](picture/object/Graph.png)scatter_ei_sqr（见图\@ref(fig:fig-scatter-ei-sqr)）  
+        
+```{r fig-gen-series,message=F,echo=FALSE,fig.cap="生成相关变量"}
+include_graphics(path = "picture/lab6-heteroskedasticity/3-generate-series.png")
+```  
+
+```{r fig-dot-resid,message=F,echo=FALSE,fig.cap="残差及残差平方的描点图"}
+include_graphics(path = "picture/lab6-heteroskedasticity/3-dot-resid.png")
+```
+
+```{r fig-dot-resid-report,message=F,echo=FALSE,fig.cap="残差及残差平方的描点图报告"}
+include_graphics(path = "picture/lab6-heteroskedasticity/3-dot-resid-report.png")
+```
+
+```{r fig-scatter-ei,message=F,echo=FALSE,fig.cap="残差与模型变量的散点图"}
+include_graphics(path = "picture/lab6-heteroskedasticity/3-scatter-ei.png")
+```
+
+```{r fig-scatter-ei-sqr,message=F,echo=FALSE,fig.cap="残差平方与模型变量的散点图"}
+include_graphics(path = "picture/lab6-heteroskedasticity/3-scatter-ei-sqr.png")
+```
+
+#### 正式检验法
+
+*  目标：利用Eviews的异方差诊断菜单，分别对主回归模型\@ref(eq:M0-car)进行 进行异方差诊断。
+
+*  思路：诊断方法包括Park检验、Glejser检验、BPG检验和White检验等。根据辅助诊断方程的理论假设，分析Eviews诊断报告，与相关参考标准进行比较，得到相关结论    
+
+*  定义：
+    * 主回归模型(Main Model)是指Y变量对全部X变量的线性回归（如主模型\@ref(eq:M0-car)）
+    * 辅助诊断模型(Auxiliary Model)是指利用主回归模型的残差序列$e_i$对X变量进行特定的线性回归（具体的辅助诊断模型有多个）  
+
+*  提示：
+    * 操作提示：用Eviews的异方差诊断菜单 $\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test
+    * 诊断提示：若发现假设检验结果不显著（视具体检验方法而不同）则表明主模型\@ref(eq:M0-car)为同方差；否则就表明主模型\@ref(eq:M0-car)为异方差
+    * 理论提示：你也可以自己根据实际情况设定个性化的辅助诊断方程
+
+##### Park检验法
+
+* 诊断辅助方程：
+
+\begin{equation}
+ln(e^2_i)=\hat{\alpha}_1+\hat{\alpha}_2ln(X_{2i})+\cdots+\hat{\alpha}_kln(X_{ki})+v_i (\#eq:A-park)
+\end{equation}
+  
+
+* 诊断标准：
+    * 如果诊断辅助方程\@ref(eq:A-park)的F检验**不显著**（对应的概率值P>0.1），则表明主模型\@ref(eq:M0-car)是同方差
+    * 如果诊断辅助方程\@ref(eq:A-park)的F检验**显著**（对应的概率值P<0.1），则表明主模型\@ref(eq:M0-car)是异方差。  
+
+* Eviews说明：Eviews没有Park异方差检验的诊断菜单，但可以通过选择Harvey异方差菜单，并修改相关变量设置来得到Park检验报告。  
+    
+* Eviews操作（菜单操作实现，具体见图\@ref(fig:fig-park-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test $\Rightarrow$ Specification
+        *  设置诊断方法（Test type）: 点击选择Harvey
+        *  设置诊断方程（Regressors）：输入`r paste('c',paste(paste('log(',table_label$variable[c(-1,-2)],')',collapse=' ',sep=''),collaspe=' '),collapse = ' ')`  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（talbe）对象：点击name(建议为tab_park)
+        *  查看结果：双击![](picture/object/Table.png)tab_park 
+        
+具体Eviews报告见\@ref(fig:fig-park-report)：
+
+
+```{r fig-park-test,message=F,echo=FALSE,fig.cap="Park异方差检验操作"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-park1.png")
+```
+
+```{r fig-park-report,message=F,echo=FALSE,fig.cap="Park异方差检验报告"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-park2.png")
+```
+
+##### Glejser检验法
+
+* 诊断辅助方程：
+
+\begin{align}
+|e_i| & =\hat{\alpha}_1+\hat{\alpha}_2X_{2i}+\cdots+\hat{\alpha}_kX_{ki}+v_i &&\text{G1} (\#eq:G1)\\
+|e_i| & =\hat{\alpha}_1+\hat{\alpha}_2\sqrt{X_{2i}}+\cdots+\hat{\alpha}_k\sqrt{X_{ki}}+v_i &&\text{G2} (\#eq:G2)\\
+|e_i| & =\hat{\alpha}_1+\hat{\alpha}_2\frac{1}{X_{2i}}+\cdots+\hat{\alpha}_k\frac{1}{X_{ki}}+v_i &&\text{G3} (\#eq:G3)
+\end{align}
+  
+
+* 诊断标准：
+    * 如果诊断辅助方程\@ref(eq:A-park)的F检验**不显著**（对应的概率值P>0.1），则表明主模型\@ref(eq:M0-car)是同方差
+    * 如果诊断辅助方程\@ref(eq:A-park)的F检验**显著**（对应的概率值P<0.1），则表明主模型\@ref(eq:M0-car)是异方差。  
+
+
+    
+* Eviews操作1（Glejser辅助方程\@ref(eq:G1)，具体见图\@ref(fig:fig-G1-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test $\Rightarrow$ Specification
+        *  设置诊断方法（Test type）: 点击选择Glejser
+        *  设置诊断方程（Regressors）：输入`r paste('c',paste(table_label$variable[c(-1,-2)],sep=''),collapse = ' ')`  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（table）对象：点击name(建议为tab_G1)
+        *  查看结果：双击![](picture/object/Table.png)tab_G1 
+        
+具体Eviews报告见\@ref(fig:fig-G1-report)：
+
+
+```{r fig-G1-test,message=F,echo=FALSE,fig.cap="Glejser异方差检验操作1"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-G1-1.png")
+```
+
+```{r fig-G1-report,message=F,echo=FALSE,fig.cap="Glejser异方差检验报告1"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-G1-2.png")
+```
+
+* Eviews操作2（Glejser辅助方程\@ref(eq:G2)，具体见图\@ref(fig:fig-G2-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test $\Rightarrow$ Specification
+        *  设置诊断方法（Test type）: 点击选择Glejser
+        *  设置诊断方程（Regressors）：输入`r paste('c',paste(paste0(table_label$variable[c(-1,-2)],'^0.5'),collapse=' '),collapse = ' ')`  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（table）对象：点击name(建议为tab_G2)
+        *  查看结果：双击![](picture/object/Table.png)tab_G2 
+        
+具体Eviews报告见\@ref(fig:fig-G2-report)：
+
+
+```{r fig-G2-test,message=F,echo=FALSE,fig.cap="Glejser异方差检验操作2"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-G2-1.png")
+```
+
+```{r fig-G2-report,message=F,echo=FALSE,fig.cap="Glejser异方差检验报告2"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-G2-2.png")
+```
+
+* Eviews操作3（Glejser辅助方程\@ref(eq:G3)，具体见图\@ref(fig:fig-G3-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test $\Rightarrow$ Specification
+        *  设置诊断方法（Test type）: 点击选择Glejser
+        *  设置诊断方程（Regressors）：输入`r paste('c',paste('1/',paste0(table_label$variable[c(-1,-2)]),collapse=' '),collapse = ' ')`  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（table）对象：点击name(建议为tab_G3)
+        *  查看结果：双击![](picture/object/Table.png)tab_G3 
+        
+具体Eviews报告见\@ref(fig:fig-G3-report)：
+
+
+```{r fig-G3-test,message=F,echo=FALSE,fig.cap="Glejser异方差检验操作3"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-G3-1.png")
+```
+
+```{r fig-G3-report,message=F,echo=FALSE,fig.cap="Glejser异方差检验报告3"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-G3-2.png")
+```
+
+##### BPG检验法
+
+* 诊断辅助方程：
+
+\begin{equation}
+e^2_i=\hat{\alpha}_1+\hat{\alpha}_2X_{2i}+\cdots+\hat{\alpha}_kX_{ki}+v_i (\#eq:A-BPG) 
+\end{equation}
+  
+
+* 诊断标准：
+    * 如果诊断辅助方程\@ref(eq:A-BPG)的$\chi^2$检验（`scaled explained SS`）**不显著**（对应的概率值P>0.1），则表明主模型\@ref(eq:M0-car)是同方差
+    * 如果诊断辅助方程\@ref(eq:A-BPG)的$\chi^2$检验（`scaled explained SS`）**显著**（对应的概率值P<0.1），则表明主模型\@ref(eq:M0-car)是异方差。  
+
+
+    
+* Eviews操作（菜单操作实现，具体见图\@ref(fig:fig-BPG-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test $\Rightarrow$ Specification
+        *  设置诊断方法（Test type）: 点击选择Breusch-Pagan-Godfrey
+        *  设置诊断方程（Regressors）：输入`r paste('c',paste(paste0(table_label$variable[c(-1,-2)]),collapse=' '),collapse = ' ')`  
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（table）对象：点击name(建议为tab_bpg)
+        *  查看结果：双击![](picture/object/Table.png)tab_bpg 
+        
+具体Eviews报告见\@ref(fig:fig-BPG-report)：
+
+
+```{r fig-BPG-test,message=F,echo=FALSE,fig.cap="BPG异方差检验操作"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-BPG1.png")
+```
+
+```{r fig-BPG-report,message=F,echo=FALSE,fig.cap="BPG异方差检验报告"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-BPG2.png")
+```
+               
+##### White检验法
+* 诊断辅助方程：
+
+\begin{align}
+Y_t & =\hat{\beta}_1+\hat{\beta}_2X_{2i}+\hat{\beta}_3X_{3i}+e_{i} (\#eq:M0-white) \\
+e^2_i & =\hat{\alpha}_1+\hat{\alpha}_2X_{2i}+\hat{\alpha}_3X_{3i}+\hat{\alpha}_4X^2_{2i}+\hat{\alpha}_5X^2_{3i}+\hat{\alpha}_6X_{2i}X_{3i}+v_i (\#eq:A-white)
+\end{align}
+  
+
+* 诊断标准：
+    * 如果诊断辅助方程\@ref(eq:A-white)的$\chi^2$检验（`scaled explained SS`）**不显著**（对应的概率值P>0.1），则表明主模型\@ref(eq:M0-white)是同方差
+    * 如果诊断辅助方程\@ref(eq:A-white)的$\chi^2$检验（`scaled explained SS`）**显著**（对应的概率值P<0.1），则表明主模型\@ref(eq:M0-white)是异方差。  
+
+
+* Eviews操作（菜单操作实现，具体见图\@ref(fig:fig-white-test)）：
+    1)  打开主方程：双击方程（equation）对象![](picture/object/Equation.png)eq_m0  
+    2)  进入引导菜单：$\Rightarrow$ View $\Rightarrow$ Residual Diagnostics $\Rightarrow$ Heteroskedasticity Test $\Rightarrow$ Specification
+        *  设置诊断方法（Test type）: 点击选择White
+        *  设置诊断方程（下面两类方程自行选择其一）：
+            * 交叉项方程：**勾选** Include White cross term
+            * 非交叉项方程：**不勾选** Include White cross term
+    3)  完成设置：点击Ok  
+    4)  命名并保存表格（table）对象![](picture/object/Table.png)
+        *  另存为表格（table）对象：点击Freeze
+        *  命名并保存表格（table）对象：点击name(建议为tab_white)
+        *  查看结果：双击![](picture/object/Table.png)tab_white 
+        
+具体Eviews报告见\@ref(fig:fig-white-report)：
+
+
+```{r fig-white-test,message=F,echo=FALSE,fig.cap="White异方差检验报告操作"}
+  include_graphics(path = "picture/lab6-heteroskedasticity/4-test-white1.png")
+```
+
+```{r fig-white-report,message=F,echo=FALSE,fig.cap="White异方差检验报告"}
+include_graphics(path = "picture/lab6-heteroskedasticity/4-test-white2.png")
+```  
+
+### 存在异方差问题的模型矫正
+
+#### 使用加权最小二乘法（WLS）矫正异方差问题
+
+
+##### WLS矫正情形1： 方差$\sigma^2_i$已知且等于样本方差$S^2$
+* 理论提示：
+
+如果主模型\@ref(eq:M0-car)存在异方差问题，且假设方差正比于样本方差$S^2_i$，则有：
+
+\begin{equation}
+var(u_i)=E(u^2_i)=\sigma^2_i=\sigma^2S^2_i (\#eq:WLS-S2)
+\end{equation}
+
+对主模型\@ref(eq:M0-car)两边同时除以$S_i$，得到：
+
+\begin{align}
+\frac{Y_i}{S_i} &=\frac{\hat{\beta}_1}{S_i}+\hat{\beta}_2\frac{X_{2i}}{S_i}+\hat{\beta}_3\frac{X_{3i}}{S_i}+\hat{\beta}_4\frac{X_{4i}}{S_i}+\hat{\beta}_5\frac{X_{5i}}{S_i}+\frac{e_{i}}{S_i}(\#eq:WLS-S2-adj)\\
+Y^{\ast}_i &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2i}+\beta^{\ast}_3X^{\ast}_{3i}+\beta^{\ast}_4X^{\ast}_{4i}+\beta^{\ast}_5X^{\ast}_{5i}+v_{i} (\#eq:WLS1-S2-red) 
+\end{align}
+
+##### WLS矫正情形2： 方差$\sigma^2_i$正比于$X^2_i$
+
+* 理论提示：
+
+如果主模型\@ref(eq:M0-car)存在异方差问题，且假设方差正比于$X^2_i$，则有：
+
+\begin{equation}
+var(u_i)=E(u^2_i)=\sigma^2_i=\sigma^2X^2_i (\#eq:WLS-X2)
+\end{equation}
+
+对主模型\@ref(eq:M0-car)两边同时除以$X_i$，得到：
+
+\begin{align}
+\frac{Y_i}{X_{2i}} &=\frac{\hat{\beta}_1}{X_{2i}}+\hat{\beta}_2+\hat{\beta}_3\frac{X_{3i}}{X_{2i}}+\hat{\beta}_4\frac{X_{4i}}{X_{2i}}+\hat{\beta}_5\frac{X_{5i}}{X_{2i}}+\frac{e_{i}}{X_{2i}}(\#eq:WLS-X2-adj)\\
+Y^{\ast}_i &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2i}+\beta^{\ast}_3X^{\ast}_{3i}+\beta^{\ast}_4X^{\ast}_{4i}+\beta^{\ast}_5X^{\ast}_{5i}+v_{i} (\#eq:WLS1-X2-red)
+\end{align}
+
+
+* Eviews操作：
+
+
+##### WLS矫正情形3： 方差$\sigma^2_i$正比于$X_i$
+* 理论提示：
+
+如果主模型\@ref(eq:M0-car)存在异方差问题，且假设方差正比于$X_i$，则有：
+
+\begin{equation}
+var(u_i)=E(u^2_i)=\sigma^2_i=\sigma^2X_i (\#eq:WLS-X)
+\end{equation}
+
+对主模型\@ref(eq:M0-car)两边同时除以$\sqrt{X_i}$，得到：
+
+\begin{align}
+\frac{Y_i}{\sqrt{X_i}} &=\frac{\hat{\beta}_1}{\sqrt{X_i}}+\hat{\beta}_2\sqrt{X_i}+\hat{\beta}_3\frac{X_{3i}}{\sqrt{X_i}}+\hat{\beta}_4\frac{X_{4i}}{\sqrt{X_i}}+\hat{\beta}_5\frac{X_{5i}}{\sqrt{X_i}}+\frac{e_{i}}{\sqrt{X_i}}(\#eq:WLS1-adj)\\
+Y^{\ast}_i &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2i}+\beta^{\ast}_3X^{\ast}_{3i}+\beta^{\ast}_4X^{\ast}_{4i}+\beta^{\ast}_5X^{\ast}_{5i}+v_{i} (\#eq:WLS1-red)
+\end{align}
+
+##### WLS矫正情形4： 方差$\sigma^2_i$正比于$\hat{Y_i}^2$
+* 理论提示：
+如果主模型\@ref(eq:M0-car)存在异方差问题，且假设方差正比于$\hat{Y_i}^2$，则有：
+
+\begin{equation}
+var(u_i)=E(u^2_i)=\sigma^2_i=\sigma^2\hat{Y_i}^2 (\#eq:WLS-Y2)
+\end{equation}
+
+对主模型\@ref(eq:M0-car)两边同时除以$\hat{Y_i}$，得到：
+
+\begin{align}
+\frac{Y_i}{\hat{Y_i}} &=\frac{\hat{\beta}_1}{\hat{Y_i}}+\hat{\beta}_2\frac{X_{2i}}{\hat{Y_i}}+\hat{\beta}_3\frac{X_{3i}}{\hat{Y_i}}+\hat{\beta}_4\frac{X_{4i}}{\hat{Y_i}}+\hat{\beta}_5\frac{X_{5i}}{\hat{Y_i}}+\frac{e_{i}}{\hat{Y_i}}(\#eq:WLS-Y2-adj)\\
+Y^{\ast}_i &=\beta^{\ast}_1+\beta^{\ast}_2X^{\ast}_{2i}+\beta^{\ast}_3X^{\ast}_{3i}+\beta^{\ast}_4X^{\ast}_{4i}+\beta^{\ast}_5X^{\ast}_{5i}+v_{i} (\#eq:WLS1-Y2-red)
+\end{align}
+
+
+* Eviews操作：
+
+##### WLS矫正情形5： 方差$\sigma^2_i$未知
+* 理论提示：
+如果主模型\@ref(eq:M0-car)存在异方差问题，且假设方差正比于$\hat{Y_i}^2$，则有：
+
+\begin{equation}
+var(u_i)=E(u^2_i)=\sigma^2_i=\sigma^2\hat{Y_i}^2 (\#eq:WLS-Y2)
+\end{equation}
+
+对主模型\@ref(eq:M0-car)两边同时取对数$ln()$，得到：
+
+\begin{equation}
+ln{Y_t} =\hat{\beta}_1+\hat{\beta}_2ln{X_{2i}}+\hat{\beta}_ln{3X_{3i}}+\hat{\beta}_4ln{X_{4i}}+\hat{\beta}_5ln{X_{5i}}+e_{i} (\#eq:WLS-ln)
+\end{equation}
+
+#### 使用White校正法矫正异方差问题
+
+*  理论提示
+
+*  Eviews操作（见图\@ref(fig:fig-adj-white)）
+    1)  依次选择$\Rightarrow$ Quick $\Rightarrow$ Estimation Equation  
+    2)  引导设置Equation Estimation $\Rightarrow$ Specification  
+        a. 方程设置（Equation Specification）： `r var_y` （此处如果仅填Y变量，则任何X变量都没有强制一定要留在模型中）
+        a. 输入自变量（List of search regressors）：`r paste(var_y,'c',paste(var_x,sep='',collapse = ' '),sep=' ')`
+        b. 估计方法（Estimation settings）：
+            * Method：选择`LS - Least Squares(NLS and ARMA)`
+            * Sample： **默认设置**
+    3) 引导设置Equation Estimation $\Rightarrow$ Options
+        a. 系数协方差设置（Coefficient covariance）
+            * 协方差方法（Coefficient method）：下拉选择Huber-White
+        c. 权重设置（Weights）：默认设置
+        c. 最优化设置（Optimization）：默认设置
+        c. 完成设置：点击`OK`  
+    3) 模型命名：建议为`eq_adj_white`  
+    4) 查看分析报告（见图\@ref(fig:fig-adj-white-report)）
+ 
+```{r fig-adj-white,message=F,echo=FALSE,fig.cap="White异方差矫正法的操作"}
+  include_graphics(path = "picture/lab6-heteroskedasticity/5-adj-white1.png")
+```
+
+```{r fig-adj-white-report,message=F,echo=FALSE,fig.cap="White异方差矫正法的Eviews报告"}
+include_graphics(path = "picture/lab6-heteroskedasticity/5-adj-white2.png")
+```  
+
+## 作业题
+
+```{r load-salary,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab6-salary-origin.xlsx",range="A1:G448")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("TOP500公司序号","高管薪水及分红","担任 CEO年数（不足6个月视为的0）","总裁CEO的年龄","企业的总销售收入","企业的利润",'企业的总资产')
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+**财富500强企业高管薪水数据**：表\@ref(tab:data-salary)给出给出了`r n`辆汽车在`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面的数据。
+
+```{r data-salary,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("财富500强企业高管薪水数据","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-salary)：
+
+```{r label-salary,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+Y_i=\beta_1+\beta_2X_{2i}+\beta_3X_{3i}+\beta_4X_{4i}+\beta_5X_{5i}+\beta_6X_{6i}+e_{i} (\#eq:M0-salary)
+\end{equation}
+
+请回答如下问题:   
+
+1. 根据回归模型\@ref(eq:M0-salary)，写出总体回归模型（PRM），并对参数的理论预期（符号、大小、关系）进行说明。  
+1. 利用Eviews对样本回归模型\@ref(eq:M0-salary)进行回归分析（将报告截图过来，并写出相应的简要报告形式——三行式或四行式）。参数估计结果符合你的理论预期么？  
+3. 回归模型\@ref(eq:M0-salary)存在异方差问题的证据吗？请以此按照下列方法进行诊断，并分别得到分析结论（要求截图过来并进行简要说明）：  
+    a. 非正式检验法（图解法）：  
+        * 绘制$e_i$序列和$e^2_i$序列的描点图（dot plot），得到你的初步结论。  
+        * 分别绘制$e_i$序列分别与$Y_i$、$X_i(i=2,\cdots,`r k`$序列的散点图（scatter plot），得到你的初步结论  
+        * 分别绘制$e^2_i$与$Y^2_i$、$X^2_i(i=2,\cdots,`r k`$序列的散点图（scatter plot），得到你的初步结论  
+    b. 正式检验法
+        * 利用Park检验法，并得出你的初步结论（要求写出park诊断方程，并将park检验结果截图过来）  
+        * 利用Glejser检验法，并得出你的初步结论(请确定X，并做三个类型的辅助回归。分别将Glejser检验结果截图过来）  
+
+\begin{align}
+|e_i| & =\hat{\alpha}_1+\hat{\alpha}_2X_{2i}+\cdots+\hat{\alpha}_kX_{ki}+v_i &&\text{G1} \\
+|e_i| & =\hat{\alpha}_1+\hat{\alpha}_2\sqrt{X_{2i}}+\cdots+\hat{\alpha}_k\sqrt{X_{ki}}+v_i &&\text{G2} \\
+|e_i| & =\hat{\alpha}_1+\hat{\alpha}_2\frac{1}{X_{2i}}+\cdots+\hat{\alpha}_k\frac{1}{X_{ki}}+v_i &&\text{G3} 
+\end{align}
+
+
+3. 
+    b.
+       * 利用BPG检验法，并得出你的初步结论（要求写出BPG诊断方程，并将BPG检验结果截图过来）  
+       * 利用White检验法（注意交叉项的使用），并得出你的初步结论（要求写出White诊断方程，并将White检验结果截图过来）  
+4. 若发现存在异方差问题，你如何进行纠正主模型\@ref(eq:M0-salary)？  
+    a. 使用White校正法纠正异方差问题，并比较与主模型\@ref(eq:M0-salary)的差别。（要求分别截图两个回归方程的Eviews报告，进行对照分析并得到结论）  
+    b. 使用加权最小二乘法纠正异方差问题（提醒：根据前述分析，几种处理方法选择一种合适的处理方法，进行模型矫正分析。请说明你选择这种处理办法的理由，并得到分析结论！）  
+5. 现在做以 $ln(Y_i)$为因变量的第二个模型。异方差性有所改善吗?（要求截图相关Eviews报告，并简要陈述理由）。  
+
+## 作业题2
+
+\newpage
+
+```{r load-inventory,message=F,echo=FALSE,include=FALSE}
+table_demo<-readxl::read_xlsx(path = "data/Lab7-inventory.xlsx",range="A1:C42")
+# give the demo data
+var_lab<-data.frame(t(tolower(names(table_demo))))
+names(var_lab)<-names(table_demo)
+n<-dim(table_demo)[1]
+k<-dim(table_demo)[2]-1
+df_tss<-n-1
+df_ess<-k-1
+df_rss<-n-k
+
+# give the variabl label data
+label<-c("年份","存货（百万美元）","销售额（百万美元）")
+table_label<-as.data.frame(list(variable=names(table_demo),label=label))
+var_x<-table_label$variable[c(-1,-2)]
+var_y<-table_label$variable[2]
+```
+
+**存货案例**：表\@ref(tab:data-inventory)给出给出了`r n`年的`r paste(paste(table_label[-1,1],table_label[-1,2],sep=''),collapse = '，')`等方面数据。
+
+```{r data-inventory,message=FALSE,echo=FALSE,results='asis',error=FALSE}
+knitr::kable(table_demo[c(1:5,(n-4):n),],booktabs = TRUE,caption = paste0("存货与销售额","(n=",dim(table_demo)[1],")"),row.names = FALSE)
+
+```
+
+变量说明见表\@ref(tab:label-inventory)：
+
+```{r label-inventory,message=F,echo=FALSE,results='asis'}
+library("knitr")
+kable(table_label,caption = "变量定义及说明",row.names=FALSE)
+```
+
+
+请考虑如下样本回归模型：
+
+\begin{equation}
+Y_t =\beta_1+\beta_2X_{2t}+u_{t}  (\#eq:M0-classic)
+\end{equation}
+
+\begin{equation}
+ln(Y_t) =\beta_1+\beta_2ln(X_{2t})+u_{t}  (\#eq:M0-log)
+\end{equation}
+
+\begin{equation}
+e_t=\hat{\rho}_1e_{t-1}+\hat{\rho}_2e_{t-2}+\cdots+\epsilon_t (\#eq:A-et)
+\end{equation}
+
+请回答如下问题:  
+
+1. 根据总体回归模型\@ref(eq:M0-classic)，请对模型参数的理论预期（符号、大小、关系）进行说明。 
+
+1. 利用Eviews对模型\@ref(eq:M0-classic)进行回归分析（将报告截图过来，并写出相应的简要报告形式——三行式或四行式）。参数估计结果符合你的理论预期么？ 
+
+3. 回归模型\@ref(eq:M0-classic)存在自相关问题的证据吗？请按照下列方法分别进行诊断，并分别得到分析结论（要求截图过来并进行简要说明）:  
+    a. 残差序列观察法（描点图法）：绘制$e_t$序列的描点图（dot plot），得到你的初步结论。  
+    b. 残差序列观察法（描点图法）：根据前述观察，确定滞后阶数并分别绘制$e_t$序列与${e_{t-1},e_{t-2},\cdots}$序列的散点图（scatter plot），得到你的初步结论  
+    b. 辅助回归法：构建残差$e_t$序列对${e_{t-1},e_{t-2},\cdots}$序列的辅助回归方程\@ref(eq:A-et)，得到你的初步结论  
+    c. 自相关和偏相关分析法：Eviews菜单操作对残差$e_t$序列进行自相关和偏相关分析（**注意滞后阶数的选择**）
+    d. Durbin-Watson检验法：分析Eviews报告中的D-W统计量  
+    e. 拉格朗日检验法（LM-test）：Eviews菜单操作进行布罗施-戈弗雷(Breusch-Goldfrey)的拉格朗日检验(B-G LM test)  
+
+4. 若发现回归模型\@ref(eq:M0-classic)存在自相关问题，你如何对该模型进行矫正？请按照下列方法分别进行诊断，并分别得到分析结论（要求截图过来并进行简要说明）：  
+    a. 广义最小二乘法(GLS)：一阶差分法变换  
+    b. 广义最小二乘法(GLS)：基于残差辅助方程\@ref(eq:A-et)中估计出来的$\hat{\rho}$近似得到$\rho$。  
+    c. 广义最小二乘法(GLS)：基于D-W统计量近似计算得到$\rho$。  
+    d. 广义最小二乘法(GLS)：基迭代法近似计算得到$\rho$。  
+    e. 一致标准误校正法（HAC）：尼威-威斯特(Newey-West)校正法  
+    f. 对数变换法：对数模型\@ref(eq:M0-log)进行Eviews回归分析  
+5. 如果模型\@ref(eq:M0-classic)与上面各种方法修正的结果相差较大，你认为哪一个方法要相对较好，为什么？ 
